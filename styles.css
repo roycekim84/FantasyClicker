@@ -133,6 +133,36 @@ body {
   position: relative;
 }
 
+.banner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border: 3px solid #5b4b38;
+  background: rgba(30, 24, 18, 0.92);
+  color: #ffe2a6;
+  font-size: 10px;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.banner.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.monster-panel.flash {
+  box-shadow: 0 0 14px rgba(255, 215, 154, 0.35);
+}
+
+.monster-panel.flash-crit {
+  box-shadow: 0 0 18px rgba(255, 120, 120, 0.4);
+}
+
 .region-info {
   display: grid;
   gap: 2px;
@@ -344,6 +374,13 @@ body {
   overflow: hidden;
 }
 
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
 .floating-text {
   position: absolute;
   font-size: 12px;
@@ -354,6 +391,7 @@ body {
 
 .floating-text.crit {
   color: #ff9d9d;
+  font-size: 14px;
 }
 
 .floating-text.miss {
@@ -379,6 +417,26 @@ body {
     opacity: 0;
     transform: translateY(-30px);
   }
+}
+
+@keyframes burst {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0;
+  }
+}
+
+.particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: #ffd88f;
+  animation: burst 0.5s ease-out forwards;
 }
 
 .hint {
@@ -510,12 +568,6 @@ body {
   color: var(--accent);
 }
 
-.equip-panel h3 {
-  margin: 8px 0 6px 0;
-  font-size: 10px;
-  color: var(--muted);
-}
-
 .equip-panel {
   display: flex;
   flex-direction: column;
@@ -523,10 +575,160 @@ body {
   gap: 6px;
 }
 
+.equipped-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.equipped-slot {
+  border: 3px solid #4b3d2e;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  background: #2f271f;
+}
+
+.slot-title {
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.slot-body {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 0;
+}
+
+.slot-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.equipped-name {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.equipped-stat {
+  color: var(--muted);
+  font-size: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.inventory-title {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
 .scroll-panel {
   overflow-y: auto;
   min-height: 0;
   padding-right: 4px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+
+.tile,
+.equip-tile {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  border: 3px solid #4b3d2e;
+  background: #2c241d;
+  text-transform: uppercase;
+  cursor: default;
+}
+
+.equip-tile {
+  width: 52px;
+}
+
+.tile[role="button"] {
+  cursor: pointer;
+}
+
+.tile.selected {
+  outline: 2px solid #f6d88a;
+}
+
+.tile.equipped,
+.equip-tile.equipped {
+  box-shadow: 0 0 0 2px #f6d88a inset;
+}
+
+.tile .badge,
+.equip-tile .badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  background: #f6d88a;
+  color: #2b210b;
+  font-size: 9px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #a48533;
+}
+
+#equipped-rune-tile {
+  width: 34px;
+  font-size: 10px;
+}
+
+.rune-line {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+}
+
+.rune-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rune-pill {
+  font-size: 8px;
+  padding: 2px 6px;
+  border: 2px solid #4b3d2e;
+  background: #2b241e;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rune-stat {
+  font-size: 8px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .scrollbox {
@@ -636,6 +838,18 @@ body {
   min-height: 0;
 }
 
+.rune-fusion {
+  border: 3px solid #4b3d2e;
+  padding: 6px 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.rune-fusion .rune-header {
+  margin-bottom: 2px;
+}
+
 .rune-card {
   border: 3px solid #4b3d2e;
   padding: 8px;
@@ -661,6 +875,53 @@ body {
   font-size: 8px;
   color: #f0d9a6;
   text-transform: uppercase;
+}
+
+.rune-offer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+
+.rune-tile {
+  border: 3px solid #4b3d2e;
+  background: #2c241d;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: 4px;
+  padding: 6px;
+  min-height: 96px;
+  text-align: center;
+}
+
+.rune-tile.disabled {
+  opacity: 0.6;
+}
+
+.rune-tile__glyph {
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  text-transform: uppercase;
+}
+
+.rune-tile__name {
+  font-size: 8px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rune-tile__cost {
+  font-size: 8px;
+  color: var(--muted);
+}
+
+.rune-tile__btn {
+  font-size: 8px;
+  padding: 4px 6px;
 }
 
 .rarity-common {
@@ -815,6 +1076,10 @@ body {
   flex-wrap: wrap;
 }
 
+.settings-controls input[type="range"] {
+  width: 140px;
+}
+
 .lang-toggle {
   display: flex;
   gap: 6px;
@@ -922,6 +1187,26 @@ body {
   cursor: not-allowed;
 }
 
+.tooltip {
+  position: fixed;
+  z-index: 20;
+  background: rgba(26, 21, 16, 0.95);
+  border: 3px solid #4b3d2e;
+  padding: 6px 8px;
+  font-size: 9px;
+  color: var(--text);
+  white-space: pre-line;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.1s ease, transform 0.1s ease;
+}
+
+.tooltip.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .reduced-fx .monster-area.combo-glow,
 .reduced-fx .skill.active {
   box-shadow: none;
@@ -1017,5 +1302,9 @@ body {
 
   .stats-row {
     flex-wrap: wrap;
+  }
+
+  .equipped-summary {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,10 +1,22 @@
-# Pixel Mercenary Clicker (v0.50.1)
+# Pixel Mercenary Clicker (v0.6)
 
 A small, local-only medieval fantasy clicker with a pixel-art vibe. Click monsters to earn gold, collect gear and runes, complete quests, and prestige for Honor.
 
 ## Run
 
 Open `index.html` in any modern browser. No build step or dependencies.
+
+## v0.6 Highlights
+
+- SFX via Web Audio (toggle + volume in Settings).
+- Feedback polish: crit/weak effects, boss/victory banners.
+- Rune Fusion: combine 3 runes to upgrade rarity.
+- Inventory and Rune Pouch are now grid tiles with tooltips + double-click equip/socket.
+- Bugfixes for rune buy enablement and socketed rune sync.
+
+## v0.61 UI
+
+- Inventory tab compacted into a 2-column equipped summary with an embedded rune line for clearer, denser layout.
 
 ## v0.50.1 Hotfix
 

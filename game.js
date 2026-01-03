@@ -94,6 +94,8 @@
   const UI_LANG_KEY = "fc_lang";
   const UI_NUMFMT_KEY = "fc_numfmt";
   const UI_FX_KEY = "fc_fx_reduced";
+  const UI_SFX_KEY = "fc_sfx_enabled";
+  const UI_SFX_VOL_KEY = "fc_sfx_volume";
 
   const BASE_HP = 30;
   const BASE_GOLD = 5;
@@ -153,9 +155,12 @@
     eventBanner: document.getElementById("event-banner"),
     eventName: document.getElementById("event-name"),
     eventTimer: document.getElementById("event-timer"),
+    monsterPanel: document.getElementById("monster-panel"),
+    banner: document.getElementById("banner"),
     monster: document.getElementById("monster"),
     monsterArea: document.getElementById("monster-area"),
     weakPoint: document.getElementById("weak-point"),
+    fxLayer: document.getElementById("fx-layer"),
     monsterName: document.getElementById("monster-name"),
     monsterType: document.getElementById("monster-type"),
     hpText: document.getElementById("hp-text"),
@@ -188,17 +193,22 @@
     sessionReport: document.getElementById("session-report"),
     equippedWeaponName: document.getElementById("equipped-weapon-name"),
     equippedWeaponStat: document.getElementById("equipped-weapon-stat"),
+    equippedWeaponTile: document.getElementById("equipped-weapon-tile"),
     unequipWeapon: document.getElementById("unequip-weapon"),
     equippedRelicName: document.getElementById("equipped-relic-name"),
     equippedRelicStat: document.getElementById("equipped-relic-stat"),
+    equippedRelicTile: document.getElementById("equipped-relic-tile"),
     unequipRelic: document.getElementById("unequip-relic"),
     equippedRuneName: document.getElementById("equipped-rune-name"),
     equippedRuneStat: document.getElementById("equipped-rune-stat"),
+    equippedRuneTile: document.getElementById("equipped-rune-tile"),
     unequipRune: document.getElementById("unequip-rune"),
     inventoryList: document.getElementById("inventory-list"),
     runeShopList: document.getElementById("rune-shop-list"),
     runeRefresh: document.getElementById("rune-refresh"),
     runeInventoryList: document.getElementById("rune-inventory-list"),
+    fuseRunes: document.getElementById("fuse-runes"),
+    fusionStatus: document.getElementById("fusion-status"),
     questList: document.getElementById("quest-list"),
     weeklyQuest: document.getElementById("weekly-quest"),
     weeklyReset: document.getElementById("weekly-reset"),
@@ -223,6 +233,8 @@
     clickCheck: document.getElementById("click-check"),
     save: document.getElementById("save"),
     reset: document.getElementById("reset"),
+    sfxToggle: document.getElementById("sfx-toggle"),
+    sfxVolume: document.getElementById("sfx-volume"),
     offlineModal: document.getElementById("offline-modal"),
     offlineText: document.getElementById("offline-text"),
     offlineClose: document.getElementById("offline-close"),
@@ -239,6 +251,7 @@
     tutorialText: document.getElementById("tutorial-text"),
     tutorialNext: document.getElementById("tutorial-next"),
     tutorialSkip: document.getElementById("tutorial-skip"),
+    tooltip: document.getElementById("tooltip"),
   };
 
   function getDefaultState() {
@@ -306,6 +319,7 @@
         lastActiveAt: Date.now(),
         comboCount: 0,
         comboLastAt: 0,
+        fusionSelection: [],
       },
       upgrades: {
         click: { level: 0, baseCost: 12 },
@@ -331,6 +345,8 @@
         numFormat: localStorage.getItem(UI_NUMFMT_KEY) || "full",
         reducedFx: localStorage.getItem(UI_FX_KEY) === "1",
         compact: localStorage.getItem(UI_COMPACT_KEY) === "1",
+        sfxEnabled: localStorage.getItem(UI_SFX_KEY) !== "0",
+        sfxVolume: Number(localStorage.getItem(UI_SFX_VOL_KEY) || 60),
         tutorialStep: 0,
         tutorialDone: false,
         tutorialClicks: 0,
@@ -349,6 +365,8 @@
   let devMode = false;
   let testMode = false;
   let clickCheckEnabled = false;
+  let audioContext = null;
+  let audioUnlocked = false;
   const dirty = {
     inventory: true,
     runes: true,
@@ -412,6 +430,65 @@
     el.tutorialSkip.textContent = t("tutorial.skip");
     updateSettingsButtons();
     dirty.i18n = false;
+  }
+
+  function unlockAudio() {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+    audioUnlocked = true;
+  }
+
+  function playSfx(type) {
+    if (!state.ui.sfxEnabled || !audioUnlocked) {
+      return;
+    }
+    if (!audioContext) {
+      return;
+    }
+    const volume = clamp(Number(state.ui.sfxVolume) || 0, 0, 100) / 100;
+    if (volume <= 0) {
+      return;
+    }
+
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const base = 0.08 * volume;
+    let freq = 440;
+    let duration = 0.08;
+    let typeWave = "square";
+
+    if (type === "crit") {
+      freq = 700;
+      duration = 0.12;
+    } else if (type === "weak") {
+      freq = 520;
+      duration = 0.1;
+    } else if (type === "confirm") {
+      freq = 360;
+      duration = 0.07;
+      typeWave = "triangle";
+    } else if (type === "boss") {
+      freq = 180;
+      duration = 0.18;
+      typeWave = "sawtooth";
+    } else if (type === "victory") {
+      freq = 520;
+      duration = 0.25;
+      typeWave = "triangle";
+    }
+
+    osc.type = typeWave;
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(base, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+    osc.connect(gain).connect(audioContext.destination);
+    osc.start(now);
+    osc.stop(now + duration);
   }
 
   function clamp(value, min, max) {
@@ -528,6 +605,10 @@
     updateRegionUi();
     updateHpUi();
     resetWeakPoint();
+    if (isBoss) {
+      showBanner(chapter ? t("ui.chapterBoss") : t("ui.bossAlert"));
+      playSfx("boss");
+    }
   }
 
   function updateRegionUi() {
@@ -584,6 +665,46 @@
       el.monster.classList.remove("shake");
       el.monster.classList.remove("hit");
     }, 180);
+  }
+
+  function flashMonster(kind) {
+    if (state.ui.reducedFx) {
+      return;
+    }
+    const cls = kind === "crit" ? "flash-crit" : "flash";
+    el.monsterPanel.classList.add(cls);
+    setTimeout(() => {
+      el.monsterPanel.classList.remove(cls);
+    }, 180);
+  }
+
+  function showBanner(text) {
+    el.banner.textContent = text;
+    el.banner.classList.add("active");
+    setTimeout(() => {
+      el.banner.classList.remove("active");
+    }, 900);
+  }
+
+  function spawnWeakParticles() {
+    if (state.ui.reducedFx) {
+      return;
+    }
+    const rect = el.monsterArea.getBoundingClientRect();
+    const count = 8;
+    for (let i = 0; i < count; i += 1) {
+      const particle = document.createElement("div");
+      particle.className = "particle";
+      const angle = (Math.PI * 2 * i) / count;
+      const dx = Math.cos(angle) * 28;
+      const dy = Math.sin(angle) * 28;
+      particle.style.setProperty("--dx", `${dx}px`);
+      particle.style.setProperty("--dy", `${dy}px`);
+      particle.style.left = `${rect.width / 2 + dx * 0.2}px`;
+      particle.style.top = `${rect.height / 2 + dy * 0.2}px`;
+      el.fxLayer.appendChild(particle);
+      particle.addEventListener("animationend", () => particle.remove());
+    }
   }
 
   function getEquippedWeapon() {
@@ -778,6 +899,35 @@
     });
   }
 
+  function showTooltip(text, x, y) {
+    if (!text) {
+      el.tooltip.classList.remove("active");
+      return;
+    }
+    el.tooltip.textContent = text;
+    const pad = 12;
+    const width = el.tooltip.offsetWidth || 160;
+    const height = el.tooltip.offsetHeight || 60;
+    const left = Math.min(window.innerWidth - width - pad, x + pad);
+    const top = Math.min(window.innerHeight - height - pad, y + pad);
+    el.tooltip.style.left = `${Math.max(pad, left)}px`;
+    el.tooltip.style.top = `${Math.max(pad, top)}px`;
+    el.tooltip.classList.add("active");
+  }
+
+  function hideTooltip() {
+    el.tooltip.classList.remove("active");
+  }
+
+  function handleTooltipMove(event) {
+    const tile = event.target.closest(".tile[data-tooltip], .equip-tile[data-tooltip]");
+    if (!tile) {
+      hideTooltip();
+      return;
+    }
+    showTooltip(tile.dataset.tooltip, event.clientX, event.clientY);
+  }
+
   function updateEventUi() {
     const event = getEventState();
     if (!event) {
@@ -903,6 +1053,8 @@
       state.meta.lifetimeChapterBossKills += 1;
       state.session.chapterBossKills += 1;
       addLog(t("log.chapterDefeat"));
+      showBanner(t("ui.victory"));
+      playSfx("victory");
     }
 
     updateQuests("kill", 1);
@@ -949,6 +1101,7 @@
   }
 
   function handleClick(isWeak = false) {
+    unlockAudio();
     if (state.run.monsterHp <= 0) {
       return;
     }
@@ -972,6 +1125,12 @@
 
     dealDamage(damage, isCrit ? "crit" : "");
     hitEffects();
+    if (isCrit) {
+      playSfx("crit");
+      flashMonster("crit");
+    } else {
+      playSfx("click");
+    }
 
     state.meta.lifetimeClickDamage += damage;
     updateQuests("click_damage", damage);
@@ -998,7 +1157,11 @@
       state.run.goldEarnedThisRun += bonusGold;
       state.meta.lifetimeGold += bonusGold;
       state.session.goldEarned += bonusGold;
+      addFloatingText("WEAK!", "weak");
       addFloatingText(`+${formatNumber(bonusGold)} ${t("ui.gold")}`, "weak");
+      spawnWeakParticles();
+      flashMonster("weak");
+      playSfx("weak");
       addLog(t("log.weakHit"));
     }
 
@@ -1078,17 +1241,64 @@
     return `${rarity} ${t(rune.effectLabelKey)}`.trim();
   }
 
+  function getRuneGlyph(rune) {
+    const effectId = rune.effect || rune.effectId;
+    if (!effectId) {
+      return "?";
+    }
+    const glyph = t(`rune.glyph.${effectId}`);
+    return glyph !== `rune.glyph.${effectId}` ? glyph : effectId.slice(0, 1).toUpperCase();
+  }
+
+  function getItemGlyph(item) {
+    return item.slot === "weapon" ? t("ui.glyphWeapon") : t("ui.glyphRelic");
+  }
+
+  function buildItemTooltip(item) {
+    const rarity = t(`rarity.${item.rarity.toLowerCase()}`);
+    const region = REGIONS.find((entry) => entry.id === item.setId);
+    const setLabel = region ? t(region.setKey) : t("ui.none");
+    return [
+      getItemName(item),
+      `${t("ui.rarity")}: ${rarity}`,
+      `${t("ui.type")}: ${t(`ui.${item.slot}`)}`,
+      `${t("ui.effect")}: ${describeItemStat(item)}`,
+      `${t("ui.set")}: ${setLabel}`,
+    ].join("\n");
+  }
+
+  function buildRuneTooltip(rune) {
+    const rarity = t(`rarity.${rune.rarity.toLowerCase()}`);
+    return [
+      getRuneName(rune),
+      `${t("ui.rarity")}: ${rarity}`,
+      `${t("ui.effect")}: ${describeRuneStat(rune)}`,
+    ].join("\n");
+  }
+
+  function buildRuneOfferTooltip(rune) {
+    const base = buildRuneTooltip(rune);
+    const costLine = `${t("ui.gold")}: ${formatNumber(rune.cost)}`;
+    return `${base}\n${costLine}`;
+  }
+
   function updateInventoryUi() {
     const weapon = getEquippedWeapon();
     if (weapon) {
       el.equippedWeaponName.textContent = `${getItemName(weapon)} (${t(`rarity.${weapon.rarity.toLowerCase()}`)})`;
       el.equippedWeaponName.className = `equipped-name rarity-${weapon.rarity.toLowerCase()}`;
       el.equippedWeaponStat.textContent = describeItemStat(weapon);
+      el.equippedWeaponTile.textContent = getItemGlyph(weapon);
+      el.equippedWeaponTile.className = `equip-tile equipped rarity-${weapon.rarity.toLowerCase()}`;
+      el.equippedWeaponTile.dataset.tooltip = buildItemTooltip(weapon);
       el.unequipWeapon.disabled = false;
     } else {
       el.equippedWeaponName.textContent = t("ui.none");
       el.equippedWeaponName.className = "equipped-name";
       el.equippedWeaponStat.textContent = t("ui.noBonus");
+      el.equippedWeaponTile.textContent = "";
+      el.equippedWeaponTile.className = "equip-tile";
+      el.equippedWeaponTile.dataset.tooltip = "";
       el.unequipWeapon.disabled = true;
     }
 
@@ -1097,60 +1307,66 @@
       el.equippedRelicName.textContent = `${getItemName(relic)} (${t(`rarity.${relic.rarity.toLowerCase()}`)})`;
       el.equippedRelicName.className = `equipped-name rarity-${relic.rarity.toLowerCase()}`;
       el.equippedRelicStat.textContent = describeItemStat(relic);
+      el.equippedRelicTile.textContent = getItemGlyph(relic);
+      el.equippedRelicTile.className = `equip-tile equipped rarity-${relic.rarity.toLowerCase()}`;
+      el.equippedRelicTile.dataset.tooltip = buildItemTooltip(relic);
       el.unequipRelic.disabled = false;
     } else {
       el.equippedRelicName.textContent = t("ui.none");
       el.equippedRelicName.className = "equipped-name";
       el.equippedRelicStat.textContent = t("ui.noBonus");
+      el.equippedRelicTile.textContent = "";
+      el.equippedRelicTile.className = "equip-tile";
+      el.equippedRelicTile.dataset.tooltip = "";
       el.unequipRelic.disabled = true;
     }
 
     const rune = getEquippedRune();
     if (rune && relic) {
       el.equippedRuneName.textContent = `${t("ui.rune")}: ${getRuneName(rune)} (${t(`rarity.${rune.rarity.toLowerCase()}`)})`;
-      el.equippedRuneName.className = `equipped-name rarity-${rune.rarity.toLowerCase()}`;
+      el.equippedRuneName.className = `rune-pill rarity-${rune.rarity.toLowerCase()}`;
       el.equippedRuneStat.textContent = describeRuneStat(rune);
+      el.equippedRuneTile.textContent = getRuneGlyph(rune);
+      el.equippedRuneTile.className = `equip-tile equipped rarity-${rune.rarity.toLowerCase()}`;
+      el.equippedRuneTile.dataset.tooltip = buildRuneTooltip(rune);
       el.unequipRune.disabled = false;
     } else if (!relic) {
       el.equippedRuneName.textContent = `${t("ui.rune")}: ${t("ui.none")}`;
-      el.equippedRuneName.className = "equipped-name";
+      el.equippedRuneName.className = "rune-pill";
       el.equippedRuneStat.textContent = t("ui.needRelicRune");
+      el.equippedRuneTile.textContent = "";
+      el.equippedRuneTile.className = "equip-tile";
+      el.equippedRuneTile.dataset.tooltip = "";
       el.unequipRune.disabled = true;
     } else {
       el.equippedRuneName.textContent = `${t("ui.rune")}: ${t("ui.none")}`;
-      el.equippedRuneName.className = "equipped-name";
+      el.equippedRuneName.className = "rune-pill";
       el.equippedRuneStat.textContent = t("ui.noRune");
+      el.equippedRuneTile.textContent = "";
+      el.equippedRuneTile.className = "equip-tile";
+      el.equippedRuneTile.dataset.tooltip = "";
       el.unequipRune.disabled = true;
     }
 
     el.inventoryList.innerHTML = "";
     state.run.inventory.forEach((item) => {
-      const wrap = document.createElement("div");
-      wrap.className = "item";
-
-      const name = document.createElement("div");
-      name.className = `name rarity-${item.rarity.toLowerCase()}`;
-      name.textContent = `${getItemName(item)} (${t(`rarity.${item.rarity.toLowerCase()}`)})`;
-
-      const stat = document.createElement("div");
-      stat.className = "stat";
-      stat.textContent = `${t(`ui.${item.slot}Slot`)} | ${describeItemStat(item)}`;
-
-      const button = document.createElement("button");
-      button.className = "small";
       const isEquipped =
         (item.slot === "weapon" && item.id === state.run.equippedWeaponId) ||
         (item.slot === "relic" && item.id === state.run.equippedRelicId);
-      button.textContent = isEquipped ? t("ui.equipped") : t("ui.equip");
-      button.disabled = isEquipped;
-      button.dataset.action = "equip-item";
-      button.dataset.itemId = item.id;
-      button.dataset.test = "equip-item";
-
-      wrap.appendChild(name);
-      wrap.appendChild(stat);
-      wrap.appendChild(button);
-      el.inventoryList.appendChild(wrap);
+      const tile = document.createElement("div");
+      tile.className = `tile rarity-${item.rarity.toLowerCase()}${isEquipped ? " equipped" : ""}`;
+      tile.setAttribute("role", "button");
+      tile.dataset.itemId = item.id;
+      tile.dataset.test = "equip-item";
+      tile.dataset.tooltip = buildItemTooltip(item);
+      tile.textContent = getItemGlyph(item);
+      if (isEquipped) {
+        const badge = document.createElement("div");
+        badge.className = "badge";
+        badge.textContent = "E";
+        tile.appendChild(badge);
+      }
+      el.inventoryList.appendChild(tile);
     });
     dirty.inventory = false;
   }
@@ -1158,42 +1374,46 @@
   function updateRuneUi() {
     el.runeShopList.innerHTML = "";
     state.run.runeShop.forEach((rune) => {
-      const wrap = document.createElement("div");
-      wrap.className = "rune-card";
+      const tile = document.createElement("div");
+      tile.className = `rune-tile rarity-${rune.rarity.toLowerCase()}`;
+      tile.dataset.tooltip = buildRuneOfferTooltip(rune);
+
+      const glyph = document.createElement("div");
+      glyph.className = "rune-tile__glyph";
+      glyph.textContent = getRuneGlyph(rune);
 
       const name = document.createElement("div");
-      name.className = `name rarity-${rune.rarity.toLowerCase()}`;
+      name.className = "rune-tile__name";
       name.textContent = getRuneName(rune);
 
-      const stat = document.createElement("div");
-      stat.className = "stat";
-      stat.textContent = describeRuneStat(rune);
-
-      const row = document.createElement("div");
-      row.className = "rune-row";
+      const cost = document.createElement("div");
+      cost.className = "rune-tile__cost";
+      cost.textContent = `${formatNumber(rune.cost)} ${t("ui.gold")}`;
 
       const button = document.createElement("button");
-      button.className = "small";
+      button.className = "small rune-tile__btn";
       button.textContent = t("ui.buy");
       button.disabled = state.run.gold < rune.cost || state.run.runes.length >= RUNE_MAX;
       button.dataset.action = "buy-rune";
       button.dataset.runeOfferId = rune.id;
+      button.dataset.cost = rune.cost;
       button.dataset.test = "rune-buy";
 
-      const cost = document.createElement("div");
-      cost.className = "stat";
-      cost.textContent = `${formatNumber(rune.cost)} ${t("ui.gold")}`;
+      if (button.disabled) {
+        tile.classList.add("disabled");
+      }
 
-      row.appendChild(cost);
-      row.appendChild(button);
-
-      wrap.appendChild(name);
-      wrap.appendChild(stat);
-      wrap.appendChild(row);
-      el.runeShopList.appendChild(wrap);
+      tile.appendChild(glyph);
+      tile.appendChild(name);
+      tile.appendChild(cost);
+      tile.appendChild(button);
+      el.runeShopList.appendChild(tile);
     });
 
     el.runeInventoryList.innerHTML = "";
+    state.run.fusionSelection = state.run.fusionSelection.filter((id) =>
+      state.run.runes.some((rune) => rune.id === id)
+    );
     const socketedId = state.run.equippedRuneId;
     const sortedRunes = [...state.run.runes].sort((a, b) => {
       if (a.id === socketedId) {
@@ -1205,50 +1425,48 @@
       return 0;
     });
     sortedRunes.forEach((rune) => {
-      const wrap = document.createElement("div");
-      wrap.className = "rune-card";
-
-      const name = document.createElement("div");
-      name.className = `name rarity-${rune.rarity.toLowerCase()}`;
-      name.textContent = getRuneName(rune);
-
-      const badge = document.createElement("div");
-      if (rune.id === socketedId) {
-        badge.className = "rune-badge";
-        badge.textContent = t("ui.socketed");
+      const isSocketed = rune.id === socketedId;
+      const isSelected = state.run.fusionSelection.includes(rune.id);
+      const tile = document.createElement("div");
+      tile.className = `tile rarity-${rune.rarity.toLowerCase()}${isSocketed ? " equipped" : ""}${
+        isSelected ? " selected" : ""
+      }`;
+      tile.setAttribute("role", "button");
+      tile.dataset.action = "select-rune";
+      tile.dataset.runeId = rune.id;
+      tile.dataset.test = "rune-socket";
+      tile.dataset.tooltip = buildRuneTooltip(rune);
+      tile.textContent = getRuneGlyph(rune);
+      if (isSocketed) {
+        const badge = document.createElement("div");
+        badge.className = "badge";
+        badge.textContent = "S";
+        tile.appendChild(badge);
       }
-
-      const stat = document.createElement("div");
-      stat.className = "stat";
-      stat.textContent = describeRuneStat(rune);
-
-      const row = document.createElement("div");
-      row.className = "rune-row";
-
-      const button = document.createElement("button");
-      button.className = "small";
-      button.textContent = rune.id === state.run.equippedRuneId ? t("ui.socketed") : t("ui.socket");
-      button.disabled = rune.id === state.run.equippedRuneId || !getEquippedRelic();
-      button.dataset.action = "socket-rune";
-      button.dataset.runeId = rune.id;
-      button.dataset.test = "rune-socket";
-
-      wrap.appendChild(name);
-      if (badge.textContent) {
-        wrap.appendChild(badge);
-      }
-      wrap.appendChild(stat);
-      row.appendChild(document.createElement("div"));
-      row.appendChild(button);
-      wrap.appendChild(row);
-      el.runeInventoryList.appendChild(wrap);
+      el.runeInventoryList.appendChild(tile);
     });
 
     const refreshCost = state.run.freeRuneRefreshUsed ? RUNE_REFRESH_COST : 0;
     el.runeRefresh.textContent =
       refreshCost === 0 ? t("ui.refreshFree") : t("ui.refreshCost", { cost: formatNumber(refreshCost) });
     el.runeRefresh.disabled = state.run.freeRuneRefreshUsed && state.run.gold < refreshCost;
+    updateFusionUi();
     dirty.runes = false;
+  }
+
+  function updateRuneAffordability() {
+    const buttons = el.runeShopList.querySelectorAll("button[data-action='buy-rune']");
+    buttons.forEach((button) => {
+      const cost = Number(button.dataset.cost) || 0;
+      const disabled = state.run.gold < cost || state.run.runes.length >= RUNE_MAX;
+      button.disabled = disabled;
+      const tile = button.closest(".rune-tile");
+      if (tile) {
+        tile.classList.toggle("disabled", disabled);
+      }
+    });
+    const refreshCost = state.run.freeRuneRefreshUsed ? RUNE_REFRESH_COST : 0;
+    el.runeRefresh.disabled = state.run.freeRuneRefreshUsed && state.run.gold < refreshCost;
   }
 
   function renderQuestCard(quest) {
@@ -1529,6 +1747,13 @@
       btn.textContent = state.ui.compact ? t("settings.on") : t("settings.off");
       btn.classList.toggle("is-active", state.ui.compact);
     });
+    if (el.sfxToggle) {
+      el.sfxToggle.textContent = state.ui.sfxEnabled ? t("settings.on") : t("settings.off");
+      el.sfxToggle.classList.toggle("is-active", state.ui.sfxEnabled);
+    }
+    if (el.sfxVolume) {
+      el.sfxVolume.value = clamp(Number(state.ui.sfxVolume) || 0, 0, 100);
+    }
     el.clickCheck.textContent = clickCheckEnabled ? t("ui.clickCheckOn") : t("ui.clickCheckOff");
   }
 
@@ -1578,6 +1803,8 @@
     updateLogUi();
     updateDevUi();
     updateTutorial();
+    updateRuneAffordability();
+    updateFusionUi();
 
     const newAch = checkAchievements();
     if (dirty.inventory) {
@@ -1629,6 +1856,7 @@
       state.run.critMultiplierBase = clamp(state.run.critMultiplierBase + 0.1, 1.5, 3.0);
     }
 
+    playSfx("confirm");
     updateUi();
     updateTutorial();
   }
@@ -1778,6 +2006,7 @@
       state.run.equippedRelicId = item.id;
       addLog(t("log.equippedRelic", { name: getItemName(item) }));
     }
+    playSfx("confirm");
     dirty.inventory = true;
     updateUi();
     updateTutorial();
@@ -1789,6 +2018,7 @@
     }
     state.run.equippedWeaponId = null;
     addLog(t("log.unequipWeapon"));
+    playSfx("confirm");
     dirty.inventory = true;
     updateUi();
   }
@@ -1800,12 +2030,13 @@
     state.run.equippedRelicId = null;
     state.run.equippedRuneId = null;
     addLog(t("log.unequipRelic"));
+    playSfx("confirm");
     dirty.inventory = true;
     updateUi();
   }
 
-  function generateRune() {
-    const rarity = getEquipmentRarity();
+  function generateRune(rarityOverride = null) {
+    const rarity = rarityOverride || getEquipmentRarity();
     const effect = RUNE_EFFECTS[randInt(0, RUNE_EFFECTS.length - 1)];
     let value = 3;
     if (rarity === "Common") {
@@ -1828,6 +2059,28 @@
       value,
       cost: Math.floor(120 + value * 20),
     };
+  }
+
+  function normalizeRune(rune) {
+    if (!rune || typeof rune !== "object") {
+      return null;
+    }
+    const effectId = rune.effect || rune.effectId || RUNE_EFFECTS[0]?.id || "boss";
+    const effect = RUNE_EFFECTS.find((entry) => entry.id === effectId) || RUNE_EFFECTS[0];
+    rune.id = rune.id || `rune-${Date.now()}-${randInt(1000, 9999)}`;
+    rune.effect = effectId;
+    rune.effectId = effectId;
+    if (!rune.effectLabelKey) {
+      rune.effectLabelKey = effect?.labelKey || "rune.effect.boss";
+    }
+    rune.rarity = rune.rarity || "Common";
+    if (!Number.isFinite(rune.value)) {
+      rune.value = 3;
+    }
+    if (rune.cost !== undefined && !Number.isFinite(rune.cost)) {
+      rune.cost = Math.floor(120 + rune.value * 20);
+    }
+    return rune;
   }
 
   function refreshRuneShop(forceFree = false) {
@@ -1888,6 +2141,7 @@
     const purchased = addRuneToInventory({ ...rune, cost: undefined });
     if (purchased) {
       addLog(t("log.boughtRune", { name: getRuneName(rune) }));
+      playSfx("confirm");
       state.run.runeShop.splice(runeIndex, 1, generateRune());
       dirty.runes = true;
       updateUi();
@@ -1898,6 +2152,7 @@
 
   function socketRune(runeId) {
     if (!getEquippedRelic()) {
+      addLog(t("log.relicRequired"));
       return;
     }
     const rune = state.run.runes.find((r) => r.id === runeId);
@@ -1906,7 +2161,10 @@
     }
 
     state.run.equippedRuneId = rune.id;
+    state.run.fusionSelection = state.run.fusionSelection.filter((id) => id !== rune.id);
     addLog(t("log.socketedRune", { name: getRuneName(rune) }));
+    playSfx("confirm");
+    dirty.inventory = true;
     dirty.runes = true;
     updateUi();
   }
@@ -1920,7 +2178,95 @@
     if (rune) {
       addLog(t("log.removedRune", { name: getRuneName(rune) }));
     }
+    playSfx("confirm");
+    dirty.inventory = true;
     dirty.runes = true;
+    updateUi();
+  }
+
+  function getNextRuneRarity(rarity) {
+    if (rarity === "Common") {
+      return "Rare";
+    }
+    if (rarity === "Rare") {
+      return "Epic";
+    }
+    return "Epic";
+  }
+
+  function toggleFusionSelection(runeId) {
+    const rune = state.run.runes.find((entry) => entry.id === runeId);
+    if (!rune) {
+      return;
+    }
+    if (rune.id === state.run.equippedRuneId) {
+      return;
+    }
+    const selection = state.run.fusionSelection;
+    const index = selection.indexOf(runeId);
+    if (index !== -1) {
+      selection.splice(index, 1);
+      dirty.runes = true;
+      updateFusionUi();
+      updateUi();
+      return;
+    }
+    if (selection.length >= 3) {
+      return;
+    }
+    if (selection.length > 0) {
+      const first = state.run.runes.find((entry) => entry.id === selection[0]);
+      if (first && first.rarity !== rune.rarity) {
+        return;
+      }
+    }
+    selection.push(runeId);
+    dirty.runes = true;
+    updateFusionUi();
+    updateUi();
+  }
+
+  function updateFusionUi() {
+    if (!el.fusionStatus || !el.fuseRunes) {
+      return;
+    }
+    const selection = state.run.fusionSelection;
+    const sample = selection[0]
+      ? state.run.runes.find((entry) => entry.id === selection[0])
+      : null;
+    const rarity = sample ? t(`rarity.${sample.rarity.toLowerCase()}`) : "-";
+    el.fusionStatus.textContent = `${t("ui.selected")}: ${selection.length}/3 (${rarity})`;
+    el.fuseRunes.textContent = t("ui.fuse");
+    el.fuseRunes.disabled = selection.length !== 3;
+  }
+
+  function fuseRunes() {
+    if (testMode) {
+      return;
+    }
+    const selection = state.run.fusionSelection;
+    if (selection.length !== 3) {
+      return;
+    }
+    const runes = selection.map((id) => state.run.runes.find((entry) => entry.id === id));
+    if (runes.some((entry) => !entry) || runes.some((entry) => entry.id === state.run.equippedRuneId)) {
+      state.run.fusionSelection = [];
+      updateFusionUi();
+      return;
+    }
+    const rarity = runes[0].rarity;
+    if (!runes.every((entry) => entry.rarity === rarity)) {
+      return;
+    }
+    const nextRarity = getNextRuneRarity(rarity);
+    state.run.runes = state.run.runes.filter((entry) => !selection.includes(entry.id));
+    const fused = generateRune(nextRarity);
+    addRuneToInventory(fused);
+    state.run.fusionSelection = [];
+    addLog(t("log.runeFuse", { name: getRuneName(fused) }));
+    playSfx("confirm");
+    dirty.runes = true;
+    dirty.inventory = true;
     updateUi();
   }
 
@@ -2135,6 +2481,7 @@
       const rune = generateRune();
       addRuneToInventory(rune);
       addLog(t("log.questRewardRune", { name: getRuneName(rune) }));
+      dirty.runes = true;
       rewardText = t("ui.rune");
     } else if (quest.rewardType === "title") {
       const titleKey = normalizeTitleKey(quest.rewardAmount);
@@ -2151,6 +2498,7 @@
     state.meta.lifetimeQuestClaims += 1;
     state.session.questsCompleted += 1;
     addLog(t("log.claimQuest", { title: t(quest.titleKey), reward: rewardText }));
+    playSfx("confirm");
     updateUi();
   }
 
@@ -2383,6 +2731,9 @@
 
     state.run = { ...defaults.run, ...data.run };
     state.run.skills = { ...defaults.run.skills, ...state.run.skills };
+    if (!Array.isArray(state.run.fusionSelection)) {
+      state.run.fusionSelection = [];
+    }
 
     state.upgrades = { ...defaults.upgrades, ...data.upgrades };
     Object.keys(state.upgrades).forEach((key) => {
@@ -2398,6 +2749,16 @@
     if (!data.ui || data.ui.tutorialDone === undefined) {
       state.ui.tutorialDone = true;
     }
+    if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
+      state.ui.lang = "en";
+    }
+    if (state.ui.numFormat !== "full" && state.ui.numFormat !== "abbr") {
+      state.ui.numFormat = "full";
+    }
+    if (typeof state.ui.sfxEnabled !== "boolean") {
+      state.ui.sfxEnabled = true;
+    }
+    state.ui.sfxVolume = clamp(Number(state.ui.sfxVolume) || 60, 0, 100);
     if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
       state.ui.lang = "en";
     }
@@ -2437,13 +2798,20 @@
     if (!Array.isArray(state.run.runes)) {
       state.run.runes = [];
     }
-    state.run.runes = state.run.runes.slice(0, RUNE_MAX);
+    state.run.runes = state.run.runes
+      .map((rune) => normalizeRune(rune))
+      .filter(Boolean)
+      .slice(0, RUNE_MAX);
     if (!state.run.runes.find((rune) => rune.id === state.run.equippedRuneId)) {
       state.run.equippedRuneId = null;
     }
 
     if (!Array.isArray(state.run.runeShop) || state.run.runeShop.length === 0) {
       state.run.runeShop = [generateRune(), generateRune(), generateRune(), generateRune()];
+    } else {
+      state.run.runeShop = state.run.runeShop
+        .map((rune) => normalizeRune(rune))
+        .filter(Boolean);
     }
 
     if (!Array.isArray(state.run.quests) || state.run.quests.length === 0) {
@@ -2489,6 +2857,9 @@
       if (data.run) {
         state.run = { ...defaults.run, ...data.run };
         state.run.skills = { ...defaults.run.skills, ...data.run.skills };
+        if (!Array.isArray(state.run.fusionSelection)) {
+          state.run.fusionSelection = [];
+        }
       }
 
       if (data.upgrades) {
@@ -2511,6 +2882,16 @@
       if (!data.ui || data.ui.tutorialDone === undefined) {
         state.ui.tutorialDone = true;
       }
+      if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
+        state.ui.lang = "en";
+      }
+      if (state.ui.numFormat !== "full" && state.ui.numFormat !== "abbr") {
+        state.ui.numFormat = "full";
+      }
+      if (typeof state.ui.sfxEnabled !== "boolean") {
+        state.ui.sfxEnabled = true;
+      }
+      state.ui.sfxVolume = clamp(Number(state.ui.sfxVolume) || 60, 0, 100);
       if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
         state.ui.lang = "en";
       }
@@ -2568,12 +2949,19 @@
       if (!Array.isArray(state.run.runes)) {
         state.run.runes = [];
       }
-      state.run.runes = state.run.runes.slice(0, RUNE_MAX);
+      state.run.runes = state.run.runes
+        .map((rune) => normalizeRune(rune))
+        .filter(Boolean)
+        .slice(0, RUNE_MAX);
       if (!state.run.runes.find((rune) => rune.id === state.run.equippedRuneId)) {
         state.run.equippedRuneId = null;
       }
       if (!Array.isArray(state.run.runeShop) || state.run.runeShop.length === 0) {
         state.run.runeShop = [generateRune(), generateRune(), generateRune(), generateRune()];
+      } else {
+        state.run.runeShop = state.run.runeShop
+          .map((rune) => normalizeRune(rune))
+          .filter(Boolean);
       }
 
       if (!Array.isArray(state.run.quests) || state.run.quests.length === 0) {
@@ -2660,6 +3048,19 @@
     updateUi();
   }
 
+  function setSfxEnabled(value) {
+    state.ui.sfxEnabled = value;
+    localStorage.setItem(UI_SFX_KEY, value ? "1" : "0");
+    updateSettingsButtons();
+  }
+
+  function setSfxVolume(value) {
+    const next = clamp(Number(value) || 0, 0, 100);
+    state.ui.sfxVolume = next;
+    localStorage.setItem(UI_SFX_VOL_KEY, String(next));
+    updateSettingsButtons();
+  }
+
   function initTabs() {
     const buttons = Array.from(document.querySelectorAll(".tab-button"));
     const panels = Array.from(document.querySelectorAll(".tab-panel"));
@@ -2671,6 +3072,10 @@
       );
       if (tab === "runes") {
         state.ui.tutorialRunesOpened = true;
+        dirty.runes = true;
+      }
+      if (tab === "inventory") {
+        dirty.inventory = true;
       }
       updateTutorial();
     };
@@ -2788,6 +3193,7 @@
   }
 
   function onGlobalClick(event) {
+    unlockAudio();
     const button = event.target.closest("button[data-action], [role='button'][data-action]");
     if (!button) {
       return;
@@ -2826,16 +3232,22 @@
         claimQuest(button.dataset.questId);
       } else if (action === "reroll-quest") {
         rerollQuests();
+      } else if (action === "select-rune") {
+        toggleFusionSelection(button.dataset.runeId);
       } else if (action === "set-lang") {
         setLang(button.dataset.lang);
       } else if (action === "set-numfmt") {
         setNumFormat(button.dataset.value);
       } else if (action === "set-reducedfx") {
         setReducedFx(button.dataset.value === "on");
+      } else if (action === "toggle-sfx") {
+        setSfxEnabled(!state.ui.sfxEnabled);
       } else if (action === "toggle-compact") {
         setCompactMode(!state.ui.compact);
       } else if (action === "toggle-dev") {
         toggleDevMode();
+      } else if (action === "fuse-runes") {
+        fuseRunes();
       } else if (action === "tutorial-next") {
         state.ui.tutorialStep += 1;
         updateTutorial();
@@ -2846,6 +3258,32 @@
     } catch (error) {
       console.error(error);
       addLog(t("log.actionError"));
+    }
+  }
+
+  function onGlobalDblClick(event) {
+    unlockAudio();
+    const tile = event.target.closest(".tile[data-item-id], .tile[data-rune-id]");
+    if (!tile) {
+      return;
+    }
+    if (tile.dataset.itemId) {
+      equipItem(tile.dataset.itemId);
+      return;
+    }
+    if (tile.dataset.runeId) {
+      if (!getEquippedRelic()) {
+        addLog(t("log.relicRequired"));
+        return;
+      }
+      const existing = getEquippedRune();
+      if (existing && existing.id !== tile.dataset.runeId) {
+        const ok = window.confirm(t("ui.confirmReplaceRune"));
+        if (!ok) {
+          return;
+        }
+      }
+      socketRune(tile.dataset.runeId);
     }
   }
 
@@ -3071,8 +3509,16 @@
     el.offlineClose.addEventListener("click", () => {
       el.offlineModal.classList.remove("active");
     });
+    if (el.sfxVolume) {
+      el.sfxVolume.addEventListener("input", (event) => {
+        setSfxVolume(event.target.value);
+      });
+    }
 
     document.addEventListener("click", onGlobalClick, true);
+    document.addEventListener("dblclick", onGlobalDblClick, true);
+    document.addEventListener("mousemove", handleTooltipMove);
+    document.addEventListener("mouseleave", hideTooltip);
     startIntervals();
   }
 
