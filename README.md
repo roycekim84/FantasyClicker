@@ -1,4 +1,4 @@
-# Pixel Mercenary Clicker (v0.44)
+# Pixel Mercenary Clicker (v0.50.1)
 
 A small, local-only medieval fantasy clicker with a pixel-art vibe. Click monsters to earn gold, collect gear and runes, complete quests, and prestige for Honor.
 
@@ -6,11 +6,18 @@ A small, local-only medieval fantasy clicker with a pixel-art vibe. Click monste
 
 Open `index.html` in any modern browser. No build step or dependencies.
 
-## v0.44 UI Polish
+## v0.50.1 Hotfix
 
-- Runes and Quests tabs now use internal scroll sections to avoid page overflow.
-- Quest layout is compact with progress bars and fixed weekly/chain blocks.
-- Button reliability preserved with global delegation.
+- Fixes content.js integration crash (`split` of undefined) with safer i18n and content guards.
+- Adds defensive defaults for missing content sections and invalid saves.
+
+## v0.5 Highlights
+
+- EN/KO language toggle (header + Settings) with full UI translation.
+- First-time tutorial guiding early steps (click, upgrade, skill, rune).
+- Settings tab for language, number format, reduce effects, compact UI, dev mode.
+- Number formatting modes: full commas or abbreviated K/M/B/T.
+- Content data moved to `content.js` for easier editing.
 
 ## v0.4 Features
 
@@ -25,7 +32,7 @@ Open `index.html` in any modern browser. No build step or dependencies.
 
 - One-screen layout with tabs (Shop, Inventory, Runes, Quests, Achievements, Collections, Log).
 - No page scrolling; long lists scroll inside panels.
-- Optional Compact mode toggle in the header.
+- Compact mode toggle lives in Settings.
 
 ## How to Play
 
@@ -40,3 +47,8 @@ Open `index.html` in any modern browser. No build step or dependencies.
 - Autosaves every 5 seconds.
 - Use the Save button for a manual save.
 - Reset wipes local storage after confirmation.
+
+## Tutorial + Language
+
+- Tutorial shows only for new saves. Reset to see it again.
+- Language can be switched anytime; UI updates immediately.

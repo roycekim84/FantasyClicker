@@ -27,7 +27,8 @@ body {
 
 body {
   margin: 0;
-  font-family: "Press Start 2P", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Apple SD Gothic Neo",
+    "Malgun Gothic", monospace;
   background: radial-gradient(circle at top, #3c332b 0%, #211c18 60%, #181310 100%);
   color: var(--text);
   font-size: clamp(10px, 0.9vw, 12px);
@@ -363,6 +364,12 @@ body {
   color: #ffd88f;
 }
 
+.ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @keyframes float {
   0% {
     opacity: 1;
@@ -389,7 +396,7 @@ body {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 6px;
 }
 
@@ -729,9 +736,8 @@ body {
 
 .quest .quest-desc {
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .quest .progress {
@@ -759,6 +765,59 @@ body {
 
 .quest-footer .small {
   min-width: 80px;
+}
+
+.tutorial {
+  border: 3px dashed #5b4b38;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  font-size: 9px;
+  background: #2e261f;
+}
+
+.tutorial.hidden {
+  display: none;
+}
+
+.tutorial-title {
+  color: var(--accent);
+  font-size: 10px;
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tutorial-text {
+  color: var(--muted);
+  word-break: keep-all;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 2px dotted #4b3d2e;
+}
+
+.settings-label {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.settings-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lang-toggle {
+  display: flex;
+  gap: 6px;
 }
 
 .achievement-filters {
@@ -861,6 +920,11 @@ body {
   border-color: #3b332b;
   color: #2a231d;
   cursor: not-allowed;
+}
+
+.reduced-fx .monster-area.combo-glow,
+.reduced-fx .skill.active {
+  box-shadow: none;
 }
 
 .modal {

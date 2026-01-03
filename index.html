@@ -3,52 +3,54 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Pixel Mercenary Clicker</title>
+    <title>Fantasy Clicker</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="game">
       <header class="topbar">
         <div class="stats-row">
-          <div class="stat"><span class="label">Gold</span> <span id="gold">0</span></div>
-          <div class="stat"><span class="label">Honor</span> <span id="honor">0</span></div>
-          <div class="stat"><span class="label">DMG Mult</span> <span id="dmg-mult">1.00x</span></div>
-          <div class="stat"><span class="label">Zone</span> <span id="zone">1</span></div>
-          <div class="stat"><span class="label">Kills</span> <span id="kills">0</span></div>
-          <div class="stat"><span class="label">Title</span> <span id="title-display">None</span></div>
-          <div class="stat boss" id="boss-indicator">Boss</div>
+          <div class="stat"><span class="label" data-i18n="ui.gold"></span> <span id="gold">0</span></div>
+          <div class="stat"><span class="label" data-i18n="ui.honor"></span> <span id="honor">0</span></div>
+          <div class="stat"><span class="label" data-i18n="ui.dmgMult"></span> <span id="dmg-mult">1.00x</span></div>
+          <div class="stat"><span class="label" data-i18n="ui.zone"></span> <span id="zone">1</span></div>
+          <div class="stat"><span class="label" data-i18n="ui.kills"></span> <span id="kills">0</span></div>
+          <div class="stat"><span class="label" data-i18n="ui.title"></span> <span id="title-display">-</span></div>
+          <div class="stat boss" id="boss-indicator"></div>
         </div>
         <div class="header-actions">
-          <button class="small" id="compact-toggle" data-test="compact">Compact: Off</button>
-          <button class="small" id="session-report" data-test="session">Session</button>
-          <button class="small" id="dev-toggle" data-test="dev">Dev</button>
-          <button class="small" id="save" data-test="save">Save</button>
-          <button class="small" id="reset" data-test="reset">Reset</button>
-          <button class="prestige" id="prestige" data-test="prestige">Prestige</button>
+          <div class="lang-toggle">
+            <button class="small" data-action="set-lang" data-lang="en">EN</button>
+            <button class="small" data-action="set-lang" data-lang="ko">KO</button>
+          </div>
+          <button class="small" id="session-report" data-test="session" data-i18n="ui.session"></button>
+          <button class="small" id="save" data-test="save" data-i18n="ui.save"></button>
+          <button class="small" id="reset" data-test="reset" data-i18n="ui.reset"></button>
+          <button class="prestige" id="prestige" data-test="prestige" data-i18n="ui.prestige"></button>
         </div>
       </header>
 
       <main class="layout">
         <section class="panel monster-panel">
           <div class="region-info">
-            <div class="region-name" id="region-name">Greenfields</div>
-            <div class="region-sub" id="region-sub">Breezy fields and soft hills</div>
+            <div class="region-name" id="region-name">-</div>
+            <div class="region-sub" id="region-sub">-</div>
           </div>
           <div class="monster-header">
             <div>
-              <div class="monster-name" id="monster-name">Forest Goblin</div>
-              <div class="monster-type" id="monster-type">Grunt</div>
-              <div class="chapter-next" id="chapter-next">Chapter boss at zone 10</div>
+              <div class="monster-name" id="monster-name">-</div>
+              <div class="monster-type" id="monster-type">-</div>
+              <div class="chapter-next" id="chapter-next">-</div>
             </div>
             <div class="hp-text" id="hp-text">0 / 0</div>
           </div>
-          <div class="combo" id="combo-display">Combo: 0 (+0%)</div>
+          <div class="combo" id="combo-display">-</div>
           <div class="hp-bar">
             <div class="hp-fill" id="hp-fill"></div>
           </div>
           <div class="event-banner" id="event-banner">
-            <span id="event-name">Event</span>
-            <span id="event-timer">0s</span>
+            <span id="event-name">-</span>
+            <span id="event-timer">-</span>
           </div>
           <div class="monster-area" id="monster-area">
             <button id="monster" class="monster" aria-label="Monster">
@@ -57,102 +59,111 @@
             <button id="weak-point" class="weak-point" aria-label="Weak Point"></button>
             <div class="floating-layer" id="floating-layer"></div>
           </div>
-          <div class="hint">Click the monster to attack</div>
+          <div class="hint" data-i18n="ui.clickHint"></div>
         </section>
 
         <section class="controls">
           <div class="tabs" role="tablist">
-            <button class="tab-button is-active" data-tab="shop" data-test="tab-shop" role="tab">Shop</button>
-            <button class="tab-button" data-tab="inventory" data-test="tab-inventory" role="tab">Inventory</button>
-            <button class="tab-button" data-tab="runes" data-test="tab-runes" role="tab">Runes</button>
-            <button class="tab-button" data-tab="quests" data-test="tab-quests" role="tab">Quests</button>
-            <button class="tab-button" data-tab="achievements" data-test="tab-achievements" role="tab">Achievements</button>
-            <button class="tab-button" data-tab="collections" data-test="tab-collections" role="tab">Collections</button>
-            <button class="tab-button" data-tab="log" data-test="tab-log" role="tab">Log</button>
+            <button class="tab-button is-active" data-tab="shop" data-test="tab-shop" role="tab" data-i18n="tabs.shop"></button>
+            <button class="tab-button" data-tab="inventory" data-test="tab-inventory" role="tab" data-i18n="tabs.inventory"></button>
+            <button class="tab-button" data-tab="runes" data-test="tab-runes" role="tab" data-i18n="tabs.runes"></button>
+            <button class="tab-button" data-tab="quests" data-test="tab-quests" role="tab" data-i18n="tabs.quests"></button>
+            <button class="tab-button" data-tab="achievements" data-test="tab-achievements" role="tab" data-i18n="tabs.achievements"></button>
+            <button class="tab-button" data-tab="collections" data-test="tab-collections" role="tab" data-i18n="tabs.collections"></button>
+            <button class="tab-button" data-tab="settings" data-test="tab-settings" role="tab" data-i18n="tabs.settings"></button>
+            <button class="tab-button" data-tab="log" data-test="tab-log" role="tab" data-i18n="tabs.log"></button>
           </div>
 
           <div class="tab-panels">
             <section class="panel tab-panel is-active" data-tab-panel="shop">
               <div class="stats compact-list">
-                <div class="stat-row"><span>Click Damage</span><span id="click-dmg">1</span></div>
-                <div class="stat-row"><span>Auto DPS</span><span id="auto-dps">0</span></div>
-                <div class="stat-row"><span>Crit Chance</span><span id="crit-chance">0%</span></div>
-                <div class="stat-row"><span>Crit Multiplier</span><span id="crit-multi">1.5x</span></div>
-                <div class="stat-row"><span>Gold Bonus</span><span id="gold-bonus">0%</span></div>
-                <div class="stat-row"><span>Zone Progress</span><span id="zone-progress">0 / 25</span></div>
+                <div class="stat-row"><span data-i18n="ui.clickDamage"></span><span id="click-dmg">1</span></div>
+                <div class="stat-row"><span data-i18n="ui.autoDps"></span><span id="auto-dps">0</span></div>
+                <div class="stat-row"><span data-i18n="ui.critChance"></span><span id="crit-chance">0%</span></div>
+                <div class="stat-row"><span data-i18n="ui.critMult"></span><span id="crit-multi">1.5x</span></div>
+                <div class="stat-row"><span data-i18n="ui.goldBonus"></span><span id="gold-bonus">0%</span></div>
+                <div class="stat-row"><span data-i18n="ui.zoneProgress"></span><span id="zone-progress">0 / 25</span></div>
               </div>
               <div class="skill-box">
-                <div class="skill-title" id="skill-title">Power Strike</div>
-                <div class="skill-desc" id="skill-desc">Click damage x3 for 4s</div>
-                <button class="skill" id="skill-activate" data-test="skill-activate">Activate</button>
-                <div class="skill-timer" id="skill-timer">Ready</div>
+                <div class="skill-title" id="skill-title">-</div>
+                <div class="skill-desc ellipsis" id="skill-desc">-</div>
+                <button class="skill" id="skill-activate" data-test="skill-activate" data-i18n="ui.activate"></button>
+                <div class="skill-timer" id="skill-timer">-</div>
                 <div class="skill-select">
-                  <button class="small" data-skill="power" data-test="skill-power">Power Strike</button>
-                  <button class="small" data-skill="cry" data-test="skill-cry">Battle Cry</button>
+                  <button class="small" data-skill="power" data-test="skill-power"></button>
+                  <button class="small" data-skill="cry" data-test="skill-cry"></button>
                 </div>
               </div>
               <div class="shop-panel">
-                <h2>Upgrades</h2>
+                <h2 data-i18n="ui.upgrades"></h2>
                 <div class="scroll-panel" id="upgrades-scroll">
                   <div class="upgrade" id="upg-click">
                     <div class="upgrade-info">
-                      <div class="title">Sword Training</div>
-                      <div class="desc">+1 click damage</div>
-                      <div class="level">Level: <span id="lvl-click">0</span></div>
+                      <div class="title" data-i18n="upgrades.sword.title"></div>
+                      <div class="desc ellipsis" data-i18n="upgrades.sword.desc"></div>
+                      <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-click">0</span></div>
                     </div>
-                    <button class="buy" id="buy-click" data-test="buy-click">Buy (<span id="cost-click">0</span>)</button>
+                    <button class="buy" id="buy-click" data-test="buy-click"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-click">0</span>)</button>
                   </div>
 
                   <div class="upgrade" id="upg-auto">
                     <div class="upgrade-info">
-                      <div class="title">Hire Mercenary</div>
-                      <div class="desc">+1 auto DPS</div>
-                      <div class="level">Level: <span id="lvl-auto">0</span></div>
+                      <div class="title" data-i18n="upgrades.merc.title"></div>
+                      <div class="desc ellipsis" data-i18n="upgrades.merc.desc"></div>
+                      <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-auto">0</span></div>
                     </div>
-                    <button class="buy" id="buy-auto" data-test="buy-auto">Buy (<span id="cost-auto">0</span>)</button>
+                    <button class="buy" id="buy-auto" data-test="buy-auto"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-auto">0</span>)</button>
                   </div>
 
                   <div class="upgrade" id="upg-crit">
                     <div class="upgrade-info">
-                      <div class="title">Sharpened Edge</div>
-                      <div class="desc">+2% crit chance (cap 50%)</div>
-                      <div class="level">Level: <span id="lvl-crit">0</span></div>
+                      <div class="title" data-i18n="upgrades.edge.title"></div>
+                      <div class="desc ellipsis" data-i18n="upgrades.edge.desc"></div>
+                      <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-crit">0</span></div>
                     </div>
-                    <button class="buy" id="buy-crit" data-test="buy-crit">Buy (<span id="cost-crit">0</span>)</button>
+                    <button class="buy" id="buy-crit" data-test="buy-crit"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-crit">0</span>)</button>
                   </div>
 
                   <div class="upgrade" id="upg-multi">
                     <div class="upgrade-info">
-                      <div class="title">Heavy Swing</div>
-                      <div class="desc">+0.1 crit multiplier (cap 3.0x)</div>
-                      <div class="level">Level: <span id="lvl-multi">0</span></div>
+                      <div class="title" data-i18n="upgrades.swing.title"></div>
+                      <div class="desc ellipsis" data-i18n="upgrades.swing.desc"></div>
+                      <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-multi">0</span></div>
                     </div>
-                    <button class="buy" id="buy-multi" data-test="buy-multi">Buy (<span id="cost-multi">0</span>)</button>
+                    <button class="buy" id="buy-multi" data-test="buy-multi"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-multi">0</span>)</button>
                   </div>
+                </div>
+              </div>
+              <div class="tutorial" id="tutorial-box">
+                <div class="tutorial-title" id="tutorial-title"></div>
+                <div class="tutorial-text" id="tutorial-text"></div>
+                <div class="tutorial-actions">
+                  <button class="small" data-action="tutorial-next" id="tutorial-next"></button>
+                  <button class="small" data-action="tutorial-skip" id="tutorial-skip"></button>
                 </div>
               </div>
             </section>
 
             <section class="panel tab-panel" data-tab-panel="inventory" id="inventory-panel">
               <div class="equip-panel">
-                <h2>Weapon Slot</h2>
+                <h2 data-i18n="ui.weaponSlot"></h2>
                 <div class="equipped" id="equipped-weapon">
-                  <div class="equipped-name" id="equipped-weapon-name">None</div>
-                  <div class="equipped-stat" id="equipped-weapon-stat">No bonus</div>
-                  <button id="unequip-weapon" class="small" data-action="unequip-weapon" data-test="unequip-weapon">Unequip</button>
+                  <div class="equipped-name" id="equipped-weapon-name">-</div>
+                  <div class="equipped-stat" id="equipped-weapon-stat">-</div>
+                  <button id="unequip-weapon" class="small" data-action="unequip-weapon" data-test="unequip-weapon" data-i18n="ui.unequip"></button>
                 </div>
-                <h2>Relic Slot</h2>
+                <h2 data-i18n="ui.relicSlot"></h2>
                 <div class="equipped" id="equipped-relic">
-                  <div class="equipped-name" id="equipped-relic-name">None</div>
-                  <div class="equipped-stat" id="equipped-relic-stat">No bonus</div>
-                  <button id="unequip-relic" class="small" data-action="unequip-relic" data-test="unequip-relic">Unequip</button>
+                  <div class="equipped-name" id="equipped-relic-name">-</div>
+                  <div class="equipped-stat" id="equipped-relic-stat">-</div>
+                  <button id="unequip-relic" class="small" data-action="unequip-relic" data-test="unequip-relic" data-i18n="ui.unequip"></button>
                 </div>
                 <div class="rune-slot">
-                  <div class="equipped-name" id="equipped-rune-name">Rune: None</div>
-                  <div class="equipped-stat" id="equipped-rune-stat">No rune socketed</div>
-                  <button id="unequip-rune" class="small" data-action="unequip-rune" data-test="unequip-rune">Remove Rune</button>
+                  <div class="equipped-name" id="equipped-rune-name">-</div>
+                  <div class="equipped-stat" id="equipped-rune-stat">-</div>
+                  <button id="unequip-rune" class="small" data-action="unequip-rune" data-test="unequip-rune" data-i18n="ui.removeRune"></button>
                 </div>
-                <h3>Inventory</h3>
+                <h3 data-i18n="ui.inventory"></h3>
                 <div class="scrollbox">
                   <div class="scroll-panel" id="inventory-list"></div>
                 </div>
@@ -162,8 +173,8 @@
             <section class="panel tab-panel runes-panel" data-tab-panel="runes" id="runes-panel">
               <div class="rune-section">
                 <div class="rune-header">
-                  <h2>Rune Shop</h2>
-                  <button id="rune-refresh" class="small" data-action="refresh-rune-shop" data-test="rune-refresh">Refresh</button>
+                  <h2 data-i18n="ui.runeShop"></h2>
+                  <button id="rune-refresh" class="small" data-action="refresh-rune-shop" data-test="rune-refresh"></button>
                 </div>
                 <div class="scrollbox">
                   <div class="scroll-panel" id="rune-shop-list"></div>
@@ -171,7 +182,7 @@
               </div>
               <div class="rune-section">
                 <div class="rune-header">
-                  <h2>Rune Pouch</h2>
+                  <h2 data-i18n="ui.runePouch"></h2>
                 </div>
                 <div class="scrollbox">
                   <div class="scroll-panel" id="rune-inventory-list"></div>
@@ -181,24 +192,24 @@
 
             <section class="panel tab-panel" data-tab-panel="quests" id="quests-panel">
               <div class="quest-header">
-                <h2>Quests</h2>
+                <h2 data-i18n="tabs.quests"></h2>
                 <div class="quest-tools">
-                  <div class="quest-reset" id="weekly-reset">Resets in 7d</div>
-                  <button id="reroll" class="small" data-action="reroll-quest" data-test="reroll">Reroll</button>
+                  <div class="quest-reset" id="weekly-reset">-</div>
+                  <button id="reroll" class="small" data-action="reroll-quest" data-test="reroll"></button>
                 </div>
               </div>
               <div class="quest-fixed">
                 <div class="quest-fixed-card">
-                  <div class="quest-subtitle">Weekly Quest</div>
+                  <div class="quest-subtitle" data-i18n="ui.weekly"></div>
                   <div id="weekly-quest"></div>
                 </div>
                 <div class="quest-fixed-card">
-                  <div class="quest-subtitle">Quest Chain</div>
+                  <div class="quest-subtitle" data-i18n="ui.chain"></div>
                   <div id="chain-quest"></div>
                 </div>
               </div>
               <div class="quest-section quest-list-section">
-                <div class="quest-subtitle">Regular Quests</div>
+                <div class="quest-subtitle" data-i18n="ui.regularQuests"></div>
                 <div class="scrollbox">
                   <div class="scroll-panel" id="quest-list"></div>
                 </div>
@@ -207,45 +218,82 @@
 
             <section class="panel tab-panel" data-tab-panel="achievements">
               <div class="achievement-header">
-                <h2>Achievements</h2>
+                <h2 data-i18n="tabs.achievements"></h2>
                 <div class="achievement-filters">
-                  <button class="small is-active" data-filter="all">All</button>
-                  <button class="small" data-filter="unlocked">Unlocked</button>
-                  <button class="small" data-filter="locked">Locked</button>
+                  <button class="small is-active" data-filter="all" data-i18n="ui.all"></button>
+                  <button class="small" data-filter="unlocked" data-i18n="ui.unlocked"></button>
+                  <button class="small" data-filter="locked" data-i18n="ui.locked"></button>
                 </div>
               </div>
               <div class="title-select">
-                <label for="title-select">Equip Title</label>
+                <label for="title-select" data-i18n="ui.equipTitle"></label>
                 <select id="title-select"></select>
               </div>
               <div class="scroll-panel" id="achievement-list"></div>
             </section>
 
             <section class="panel tab-panel" data-tab-panel="collections">
-              <h2>Collections</h2>
-              <div class="collection-summary" id="collection-summary">Sets completed: 0/5</div>
-              <div class="collection-bonus" id="collection-bonus">Gold bonus: +0%</div>
+              <h2 data-i18n="tabs.collections"></h2>
+              <div class="collection-summary" id="collection-summary">-</div>
+              <div class="collection-bonus" id="collection-bonus">-</div>
               <div class="scroll-panel" id="collection-list"></div>
             </section>
 
+            <section class="panel tab-panel" data-tab-panel="settings" id="settings-panel">
+              <h2 data-i18n="tabs.settings"></h2>
+              <div class="settings-row">
+                <div class="settings-label" data-i18n="settings.language"></div>
+                <div class="settings-controls">
+                  <button class="small" data-action="set-lang" data-lang="en">EN</button>
+                  <button class="small" data-action="set-lang" data-lang="ko">KO</button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label" data-i18n="settings.numberFormat"></div>
+                <div class="settings-controls">
+                  <button class="small" data-action="set-numfmt" data-value="full"></button>
+                  <button class="small" data-action="set-numfmt" data-value="abbr"></button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label" data-i18n="settings.reduceFx"></div>
+                <div class="settings-controls">
+                  <button class="small" data-action="set-reducedfx" data-value="on"></button>
+                  <button class="small" data-action="set-reducedfx" data-value="off"></button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label" data-i18n="settings.compact"></div>
+                <div class="settings-controls">
+                  <button class="small" data-action="toggle-compact"></button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label" data-i18n="settings.devMode"></div>
+                <div class="settings-controls">
+                  <button class="small" data-action="toggle-dev"></button>
+                </div>
+              </div>
+            </section>
+
             <section class="panel tab-panel" data-tab-panel="log">
-              <h2>Log</h2>
+              <h2 data-i18n="tabs.log"></h2>
               <div class="scroll-panel log-scroll" id="log-list"></div>
               <div class="dev-panel" id="dev-panel">
-                <h2>Dev Panel</h2>
+                <h2 data-i18n="ui.devPanel"></h2>
                 <div class="dev-info" id="dev-info"></div>
                 <div class="dev-actions">
-                  <button class="small" id="dev-gold" data-test="dev-gold">Give +10,000 gold</button>
-                  <button class="small" id="dev-zone" data-test="dev-zone">Advance Zone +1</button>
-                  <button class="small" id="dev-boss" data-test="dev-boss">Spawn Boss</button>
+                  <button class="small" id="dev-gold" data-test="dev-gold" data-i18n="ui.devGold"></button>
+                  <button class="small" id="dev-zone" data-test="dev-zone" data-i18n="ui.devZone"></button>
+                  <button class="small" id="dev-boss" data-test="dev-boss" data-i18n="ui.devBoss"></button>
                 </div>
                 <div class="dev-actions">
-                  <button class="small" id="export-save" data-test="export">Export Save</button>
-                  <button class="small" id="import-save" data-test="import">Import Save</button>
-                  <button class="small" id="run-tests" data-test="run-tests">Run UI Tests</button>
+                  <button class="small" id="export-save" data-test="export" data-i18n="ui.export"></button>
+                  <button class="small" id="import-save" data-test="import" data-i18n="ui.import"></button>
+                  <button class="small" id="run-tests" data-test="run-tests" data-i18n="ui.runTests"></button>
                 </div>
                 <div class="dev-actions">
-                  <button class="small" id="click-check">Click Check: Off</button>
+                  <button class="small" id="click-check" data-i18n="ui.clickCheckOff"></button>
                 </div>
                 <div class="test-results" id="test-results"></div>
               </div>
@@ -257,32 +305,33 @@
 
     <div class="modal" id="offline-modal">
       <div class="modal-content">
-        <h2>Welcome Back</h2>
-        <p id="offline-text">While you were away...</p>
-        <button id="offline-close" class="small">Continue</button>
+        <h2 data-i18n="ui.welcomeBack"></h2>
+        <p id="offline-text">-</p>
+        <button id="offline-close" class="small" data-i18n="ui.continue"></button>
       </div>
     </div>
 
     <div class="modal" id="session-modal">
       <div class="modal-content">
-        <h2>Session Report</h2>
+        <h2 data-i18n="ui.sessionReport"></h2>
         <div id="session-content"></div>
-        <button id="session-close" class="small">Close</button>
+        <button id="session-close" class="small" data-i18n="ui.close"></button>
       </div>
     </div>
 
     <div class="modal" id="save-modal">
       <div class="modal-content">
-        <h2>Export / Import Save</h2>
+        <h2 data-i18n="ui.exportImport"></h2>
         <textarea id="save-text" rows="8"></textarea>
         <div class="modal-actions">
-          <button id="save-copy" class="small">Copy</button>
-          <button id="save-apply" class="small">Import</button>
-          <button id="save-close" class="small">Close</button>
+          <button id="save-copy" class="small" data-i18n="ui.copy"></button>
+          <button id="save-apply" class="small" data-i18n="ui.import"></button>
+          <button id="save-close" class="small" data-i18n="ui.close"></button>
         </div>
       </div>
     </div>
 
+    <script src="content.js"></script>
     <script src="game.js"></script>
   </body>
 </html>

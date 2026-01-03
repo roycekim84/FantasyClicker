@@ -1,8 +1,100 @@
 (() => {
   "use strict";
 
+  const CONTENT = window.CONTENT || {};
+  const I18N = window.I18N || { en: {}, ko: {} };
+  if (!window.CONTENT) {
+    window.CONTENT = CONTENT;
+  }
+  if (!window.I18N) {
+    window.I18N = I18N;
+  }
+
+  function validateContent() {
+    if (!I18N.en || typeof I18N.en !== "object") {
+      I18N.en = {};
+    }
+    if (!I18N.ko || typeof I18N.ko !== "object") {
+      I18N.ko = {};
+    }
+    if (!CONTENT.monsters || typeof CONTENT.monsters !== "object") {
+      CONTENT.monsters = {};
+    }
+    if (!Array.isArray(CONTENT.monsters.types) || CONTENT.monsters.types.length === 0) {
+      CONTENT.monsters.types = [
+        { id: "grunt", labelKey: "monster.type.grunt", hpMult: 1, goldMult: 1, dodge: 0 },
+      ];
+      console.warn("CONTENT.monsters.types missing; using defaults.");
+    }
+    if (!Array.isArray(CONTENT.regions) || CONTENT.regions.length === 0) {
+      CONTENT.regions = [
+        {
+          id: "greenfields",
+          start: 1,
+          end: 10,
+          nameKey: "region.greenfields.name",
+          subtitleKey: "region.greenfields.sub",
+          setKey: "collection.greenfields",
+          enemies: ["region.greenfields.enemy1"],
+        },
+      ];
+      console.warn("CONTENT.regions missing; using defaults.");
+    }
+    if (!Array.isArray(CONTENT.runeEffects)) {
+      CONTENT.runeEffects = [];
+      console.warn("CONTENT.runeEffects missing; using empty list.");
+    }
+    if (CONTENT.runeEffects.length === 0) {
+      CONTENT.runeEffects.push({ id: "boss", labelKey: "rune.effect.boss" });
+    }
+    if (!Array.isArray(CONTENT.events)) {
+      CONTENT.events = [];
+      console.warn("CONTENT.events missing; using empty list.");
+    }
+    if (CONTENT.events.length === 0) {
+      CONTENT.events.push({ id: "gold", nameKey: "event.gold", duration: 10, goldPct: 100 });
+    }
+    if (!CONTENT.quests || typeof CONTENT.quests !== "object") {
+      CONTENT.quests = {};
+    }
+    if (!Array.isArray(CONTENT.quests.templates)) {
+      CONTENT.quests.templates = [];
+      console.warn("CONTENT.quests.templates missing; using empty list.");
+    }
+    if (!Array.isArray(CONTENT.quests.weekly)) {
+      CONTENT.quests.weekly = [];
+      console.warn("CONTENT.quests.weekly missing; using empty list.");
+    }
+    if (!Array.isArray(CONTENT.quests.chains)) {
+      CONTENT.quests.chains = [];
+      console.warn("CONTENT.quests.chains missing; using empty list.");
+    }
+    if (!Array.isArray(CONTENT.achievements)) {
+      CONTENT.achievements = [];
+      console.warn("CONTENT.achievements missing; using empty list.");
+    }
+    if (!CONTENT.itemNames || typeof CONTENT.itemNames !== "object") {
+      CONTENT.itemNames = { prefixes: [], weapons: [], relics: [] };
+    }
+    if (!Array.isArray(CONTENT.itemNames.prefixes) || CONTENT.itemNames.prefixes.length === 0) {
+      CONTENT.itemNames.prefixes = ["item.prefix.old"];
+    }
+    if (!Array.isArray(CONTENT.itemNames.weapons) || CONTENT.itemNames.weapons.length === 0) {
+      CONTENT.itemNames.weapons = ["item.weapon.blade"];
+    }
+    if (!Array.isArray(CONTENT.itemNames.relics) || CONTENT.itemNames.relics.length === 0) {
+      CONTENT.itemNames.relics = ["item.relic.relic"];
+    }
+  }
+
+  validateContent();
+
   const SAVE_KEY = "pixel-mercenary-clicker-v0.1";
-  const UI_COMPACT_KEY = "ui_compact";
+  const UI_COMPACT_KEY = "fc_compact";
+  const UI_LANG_KEY = "fc_lang";
+  const UI_NUMFMT_KEY = "fc_numfmt";
+  const UI_FX_KEY = "fc_fx_reduced";
+
   const BASE_HP = 30;
   const BASE_GOLD = 5;
   const ZONE_KILLS = 25;
@@ -23,458 +115,28 @@
   const WEAK_POINT_MIN_MS = 1200;
   const WEAK_POINT_MAX_MS = 2200;
 
-  const MONSTER_TYPES = [
-    { id: "grunt", label: "Grunt", hpMult: 1, goldMult: 1, dodge: 0 },
-    { id: "tank", label: "Tank", hpMult: 2.2, goldMult: 1.6, dodge: 0 },
-    { id: "runner", label: "Runner", hpMult: 0.7, goldMult: 0.9, dodge: 0.08 },
-  ];
-
-  const REGIONS = [
-    {
-      id: "greenfields",
-      start: 1,
-      end: 10,
-      name: "Greenfields",
-      subtitle: "Breezy fields and soft hills",
-      enemies: [
-        "Wandering Slime",
-        "Meadow Imp",
-        "Twig Sprout",
-        "Rustling Boar",
-        "Thornling",
-        "Moss Beetle",
-        "Bramble Rat",
-        "Hollow Crow",
-      ],
-      setName: "Greenfields Set",
-    },
-    {
-      id: "ashen-ruins",
-      start: 11,
-      end: 20,
-      name: "Ashen Ruins",
-      subtitle: "Broken stone and ember dust",
-      enemies: [
-        "Cinder Wight",
-        "Ashling",
-        "Rubble Troll",
-        "Smolder Bat",
-        "Coal Wisp",
-        "Ruins Bandit",
-        "Scorchling",
-        "Burnt Golem",
-      ],
-      setName: "Ashen Set",
-    },
-    {
-      id: "crypt-depths",
-      start: 21,
-      end: 30,
-      name: "Crypt Depths",
-      subtitle: "Cold echoes and ancient bones",
-      enemies: [
-        "Graveling",
-        "Bone Skulker",
-        "Crypt Moth",
-        "Ghoul Pike",
-        "Mire Spirit",
-        "Rot Hound",
-        "Dust Lich",
-        "Tomb Guard",
-      ],
-      setName: "Crypt Set",
-    },
-    {
-      id: "frost-peaks",
-      start: 31,
-      end: 40,
-      name: "Frost Peaks",
-      subtitle: "Wind-cut ice and biting chill",
-      enemies: [
-        "Ice Gnarl",
-        "Frost Hare",
-        "Glacier Whelp",
-        "Snow Stalker",
-        "Rime Boar",
-        "Peak Ravager",
-        "Shiver Drake",
-        "Hoarfang",
-      ],
-      setName: "Frost Set",
-    },
-    {
-      id: "void-gate",
-      start: 41,
-      end: 50,
-      name: "Void Gate",
-      subtitle: "Whispering dark beyond the veil",
-      enemies: [
-        "Voidling",
-        "Warped Knight",
-        "Shade Weaver",
-        "Abyss Echo",
-        "Night Marauder",
-        "Null Seraph",
-        "Grim Oracle",
-        "Gate Sentinel",
-      ],
-      setName: "Void Set",
-    },
-  ];
-
-  const RUNE_EFFECTS = [
-    { id: "boss", label: "Boss Slayer", desc: "+% damage vs bosses" },
-    { id: "greed", label: "Greed", desc: "+% gold gain" },
-    { id: "precision", label: "Precision", desc: "+% crit chance" },
-    { id: "swiftness", label: "Swiftness", desc: "-% skill cooldown" },
-    { id: "fury", label: "Fury", desc: "+% click damage" },
-    { id: "tinker", label: "Tinker", desc: "+% auto DPS" },
-  ];
-
-  const EVENT_TYPES = [
-    { id: "gold", name: "Gold Rush", duration: 10, goldPct: 100 },
-    { id: "frenzy", name: "Frenzy", duration: 10, clickPct: 100 },
-    { id: "overclock", name: "Overclock", duration: 10, autoPct: 100 },
-    { id: "lucky", name: "Lucky Crits", duration: 12, critPct: 15 },
-    { id: "weakness", name: "Weakness Exposed", duration: 10, typePct: 50 },
-  ];
-
-  const ACHIEVEMENTS = [
-    {
-      id: "kills_100",
-      title: "First Blood",
-      desc: "Defeat 100 monsters",
-      titleReward: "Monster Scout",
-      check: (s) => s.meta.lifetimeKills >= 100,
-    },
-    {
-      id: "kills_1000",
-      title: "Grim Reaper",
-      desc: "Defeat 1,000 monsters",
-      titleReward: "Grim Reaper",
-      check: (s) => s.meta.lifetimeKills >= 1000,
-    },
-    {
-      id: "kills_10000",
-      title: "Storm of Steel",
-      desc: "Defeat 10,000 monsters",
-      titleReward: "Storm of Steel",
-      check: (s) => s.meta.lifetimeKills >= 10000,
-    },
-    {
-      id: "boss_50",
-      title: "Boss Hunter",
-      desc: "Defeat 50 bosses",
-      titleReward: "Boss Hunter",
-      check: (s) => s.meta.lifetimeBossKills >= 50,
-    },
-    {
-      id: "boss_200",
-      title: "Boss Bane",
-      desc: "Defeat 200 bosses",
-      titleReward: "Boss Bane",
-      check: (s) => s.meta.lifetimeBossKills >= 200,
-    },
-    {
-      id: "chapter_1",
-      title: "Chapter Breaker",
-      desc: "Defeat 1 chapter boss",
-      titleReward: "Chapter Breaker",
-      check: (s) => s.meta.lifetimeChapterBossKills >= 1,
-    },
-    {
-      id: "chapter_5",
-      title: "Saga Ender",
-      desc: "Defeat 5 chapter bosses",
-      titleReward: "Saga Ender",
-      check: (s) => s.meta.lifetimeChapterBossKills >= 5,
-    },
-    {
-      id: "prestige_1",
-      title: "Ascended",
-      desc: "Prestige once",
-      titleReward: "Ascended",
-      check: (s) => s.meta.lifetimePrestiges >= 1,
-    },
-    {
-      id: "prestige_5",
-      title: "Reborn Veteran",
-      desc: "Prestige 5 times",
-      titleReward: "Reborn Veteran",
-      check: (s) => s.meta.lifetimePrestiges >= 5,
-    },
-    {
-      id: "honor_10",
-      title: "Honored",
-      desc: "Earn 10 Honor",
-      titleReward: "Honored",
-      check: (s) => s.meta.totalHonor >= 10,
-    },
-    {
-      id: "honor_50",
-      title: "Noble",
-      desc: "Earn 50 Honor",
-      titleReward: "Noble",
-      check: (s) => s.meta.totalHonor >= 50,
-    },
-    {
-      id: "rare_weapon",
-      title: "Arsenal",
-      desc: "Obtain a Rare weapon",
-      titleReward: "Arsenal",
-      check: (s) => s.meta.foundRareWeapon,
-    },
-    {
-      id: "epic_weapon",
-      title: "Master Forge",
-      desc: "Obtain an Epic weapon",
-      titleReward: "Master Forge",
-      check: (s) => s.meta.foundEpicWeapon,
-    },
-    {
-      id: "rare_relic",
-      title: "Rare Find",
-      desc: "Obtain a Rare relic",
-      titleReward: "Relic Seeker",
-      check: (s) => s.meta.foundRareRelic,
-    },
-    {
-      id: "epic_relic",
-      title: "Epic Find",
-      desc: "Obtain an Epic relic",
-      titleReward: "Artifact Hunter",
-      check: (s) => s.meta.foundEpicRelic,
-    },
-    {
-      id: "rare_rune",
-      title: "Rune Collector",
-      desc: "Obtain a Rare rune",
-      titleReward: "Rune Collector",
-      check: (s) => s.meta.foundRareRune,
-    },
-    {
-      id: "epic_rune",
-      title: "Rune Sage",
-      desc: "Obtain an Epic rune",
-      titleReward: "Rune Sage",
-      check: (s) => s.meta.foundEpicRune,
-    },
-    {
-      id: "quests_10",
-      title: "Taskmaster",
-      desc: "Complete 10 quests",
-      titleReward: "Taskmaster",
-      check: (s) => s.meta.lifetimeQuestClaims >= 10,
-    },
-    {
-      id: "quests_50",
-      title: "Quest Lord",
-      desc: "Complete 50 quests",
-      titleReward: "Quest Lord",
-      check: (s) => s.meta.lifetimeQuestClaims >= 50,
-    },
-    {
-      id: "region_ruins",
-      title: "Ash Walker",
-      desc: "Enter Ashen Ruins",
-      titleReward: "Ash Walker",
-      check: (s) => s.meta.regionsReached.includes("ashen-ruins"),
-    },
-    {
-      id: "region_crypt",
-      title: "Crypt Delver",
-      desc: "Enter Crypt Depths",
-      titleReward: "Crypt Delver",
-      check: (s) => s.meta.regionsReached.includes("crypt-depths"),
-    },
-    {
-      id: "region_void",
-      title: "Void Touched",
-      desc: "Enter Void Gate",
-      titleReward: "Void Touched",
-      check: (s) => s.meta.regionsReached.includes("void-gate"),
-    },
-    {
-      id: "skills_50",
-      title: "Commander",
-      desc: "Use a skill 50 times",
-      titleReward: "Commander",
-      check: (s) => s.meta.lifetimeSkillUses >= 50,
-    },
-    {
-      id: "skills_200",
-      title: "Tactician",
-      desc: "Use a skill 200 times",
-      titleReward: "Tactician",
-      check: (s) => s.meta.lifetimeSkillUses >= 200,
-    },
-  ];
-
-  const QUEST_TEMPLATES = [
-    {
-      id: "kill_basic",
-      title: "Cull the Wilds",
-      desc: (t) => `Defeat ${t} monsters`,
-      type: "kill",
-      target: () => randInt(25, 60),
-      reward: () => ({ type: "gold", amount: randInt(120, 280) }),
-    },
-    {
-      id: "kill_bosses",
-      title: "Break the Siege",
-      desc: (t) => `Defeat ${t} bosses`,
-      type: "boss_kill",
-      target: () => randInt(2, 5),
-      reward: () => ({ type: "gold", amount: randInt(220, 380) }),
-    },
-    {
-      id: "click_damage",
-      title: "Sharpen Your Strikes",
-      desc: (t) => `Deal ${formatNumber(t)} click damage`,
-      type: "click_damage",
-      target: () => randInt(250, 900),
-      reward: () => ({ type: "gold", amount: randInt(160, 320) }),
-    },
-    {
-      id: "crit_hits",
-      title: "Lucky Blows",
-      desc: (t) => `Land ${t} critical hits`,
-      type: "crit",
-      target: () => randInt(6, 18),
-      reward: () => ({ type: "gold", amount: randInt(180, 300) }),
-    },
-    {
-      id: "earn_gold",
-      title: "Pouch Filler",
-      desc: (t) => `Earn ${formatNumber(t)} gold`,
-      type: "gold_earned",
-      target: () => randInt(300, 900),
-      reward: () => ({ type: "gold", amount: randInt(180, 350) }),
-    },
-    {
-      id: "reach_zone",
-      title: "Scout the Frontier",
-      desc: (t) => `Reach zone ${t}`,
-      type: "zone_reach",
-      target: () => randInt(4, 8),
-      reward: () => ({ type: "honor", amount: 1 }),
-    },
-    {
-      id: "boss_hunt",
-      title: "Warlord Bounty",
-      desc: (t) => `Defeat ${t} bosses this run`,
-      type: "boss_kill",
-      target: () => randInt(3, 6),
-      reward: () => ({ type: "honor", amount: 1 }),
-    },
-    {
-      id: "rapid_kills",
-      title: "Fast Hands",
-      desc: (t) => `Defeat ${t} monsters`,
-      type: "kill",
-      target: () => randInt(45, 90),
-      reward: () => ({ type: "gold", amount: randInt(250, 420) }),
-    },
-    {
-      id: "crit_spree",
-      title: "Edge of Fate",
-      desc: (t) => `Trigger ${t} critical hits`,
-      type: "crit",
-      target: () => randInt(12, 25),
-      reward: () => ({ type: "gold", amount: randInt(240, 420) }),
-    },
-    {
-      id: "click_master",
-      title: "Hammer Time",
-      desc: (t) => `Deal ${formatNumber(t)} click damage`,
-      type: "click_damage",
-      target: () => randInt(600, 1400),
-      reward: () => ({ type: "honor", amount: 1 }),
-    },
-    {
-      id: "rune_favor",
-      title: "Rune Favor",
-      desc: (t) => `Defeat ${t} monsters`,
-      type: "kill",
-      target: () => randInt(35, 70),
-      reward: () => ({ type: "rune", amount: 1 }),
-    },
-  ];
-
-  const WEEKLY_TEMPLATES = [
-    {
-      id: "weekly_kills",
-      title: "Weekly Hunt",
-      desc: (t) => `Defeat ${t} monsters`,
-      type: "kill",
-      target: () => randInt(300, 500),
-      reward: () => ({ type: "honor", amount: 3 }),
-    },
-    {
-      id: "weekly_boss",
-      title: "Weekly Siege",
-      desc: (t) => `Defeat ${t} bosses`,
-      type: "boss_kill",
-      target: () => randInt(15, 25),
-      reward: () => ({ type: "honor", amount: 3 }),
-    },
-    {
-      id: "weekly_gold",
-      title: "Weekly Fortune",
-      desc: (t) => `Earn ${formatNumber(t)} gold`,
-      type: "gold_earned",
-      target: () => randInt(4000, 6500),
-      reward: () => ({ type: "title", amount: "Weekly Victor" }),
-    },
-  ];
-
-  const CHAIN_TEMPLATES = [
-    {
-      id: "chain_slayer",
-      title: "Slayer Path",
-      steps: [
-        { type: "kill", target: 60, desc: "Defeat 60 monsters" },
-        { type: "boss_kill", target: 5, desc: "Defeat 5 bosses" },
-        { type: "kill", target: 120, desc: "Defeat 120 monsters" },
-      ],
-    },
-    {
-      id: "chain_crit",
-      title: "Critical Path",
-      steps: [
-        { type: "crit", target: 10, desc: "Land 10 critical hits" },
-        { type: "click_damage", target: 800, desc: "Deal 800 click damage" },
-        { type: "crit", target: 20, desc: "Land 20 critical hits" },
-      ],
-    },
-    {
-      id: "chain_gold",
-      title: "Golden Path",
-      steps: [
-        { type: "gold_earned", target: 600, desc: "Earn 600 gold" },
-        { type: "gold_earned", target: 1200, desc: "Earn 1,200 gold" },
-        { type: "gold_earned", target: 2000, desc: "Earn 2,000 gold" },
-      ],
-    },
-    {
-      id: "chain_zone",
-      title: "Frontier Path",
-      steps: [
-        { type: "zone_reach", target: 6, desc: "Reach zone 6" },
-        { type: "zone_reach", target: 8, desc: "Reach zone 8" },
-        { type: "zone_reach", target: 10, desc: "Reach zone 10" },
-      ],
-    },
-    {
-      id: "chain_master",
-      title: "Master Path",
-      steps: [
-        { type: "kill", target: 80, desc: "Defeat 80 monsters" },
-        { type: "click_damage", target: 1000, desc: "Deal 1,000 click damage" },
-        { type: "boss_kill", target: 7, desc: "Defeat 7 bosses" },
-      ],
-    },
-  ];
+  const MONSTER_TYPES = CONTENT.monsters.types;
+  const REGIONS = CONTENT.regions;
+  const RUNE_EFFECTS = CONTENT.runeEffects;
+  const EVENT_TYPES = CONTENT.events;
+  const QUEST_TEMPLATES = CONTENT.quests.templates;
+  const WEEKLY_TEMPLATES = CONTENT.quests.weekly;
+  const CHAIN_TEMPLATES = CONTENT.quests.chains;
+  const ACHIEVEMENTS = CONTENT.achievements;
+  const TITLE_MAP = (() => {
+    const map = {};
+    const add = (entries) => {
+      if (!entries) {
+        return;
+      }
+      Object.keys(entries).forEach((key) => {
+        map[entries[key]] = `title.${key}`;
+      });
+    };
+    add(I18N.en?.title);
+    add(I18N.ko?.title);
+    return map;
+  })();
 
   const el = {
     gold: document.getElementById("gold"),
@@ -523,9 +185,7 @@
     skillTimer: document.getElementById("skill-timer"),
     skillSelect: document.querySelector(".skill-select"),
     prestige: document.getElementById("prestige"),
-    compactToggle: document.getElementById("compact-toggle"),
     sessionReport: document.getElementById("session-report"),
-    devToggle: document.getElementById("dev-toggle"),
     equippedWeaponName: document.getElementById("equipped-weapon-name"),
     equippedWeaponStat: document.getElementById("equipped-weapon-stat"),
     unequipWeapon: document.getElementById("unequip-weapon"),
@@ -536,17 +196,14 @@
     equippedRuneStat: document.getElementById("equipped-rune-stat"),
     unequipRune: document.getElementById("unequip-rune"),
     inventoryList: document.getElementById("inventory-list"),
-    inventoryPanel: document.getElementById("inventory-panel"),
     runeShopList: document.getElementById("rune-shop-list"),
     runeRefresh: document.getElementById("rune-refresh"),
     runeInventoryList: document.getElementById("rune-inventory-list"),
-    runesPanel: document.getElementById("runes-panel"),
     questList: document.getElementById("quest-list"),
     weeklyQuest: document.getElementById("weekly-quest"),
     weeklyReset: document.getElementById("weekly-reset"),
     chainQuest: document.getElementById("chain-quest"),
     reroll: document.getElementById("reroll"),
-    questsPanel: document.getElementById("quests-panel"),
     achievementList: document.getElementById("achievement-list"),
     achievementFilters: document.querySelector(".achievement-filters"),
     titleSelect: document.getElementById("title-select"),
@@ -577,6 +234,11 @@
     saveCopy: document.getElementById("save-copy"),
     saveApply: document.getElementById("save-apply"),
     saveClose: document.getElementById("save-close"),
+    tutorialBox: document.getElementById("tutorial-box"),
+    tutorialTitle: document.getElementById("tutorial-title"),
+    tutorialText: document.getElementById("tutorial-text"),
+    tutorialNext: document.getElementById("tutorial-next"),
+    tutorialSkip: document.getElementById("tutorial-skip"),
   };
 
   function getDefaultState() {
@@ -601,7 +263,7 @@
         regionsReached: ["greenfields"],
         achievements: {},
         titlesUnlocked: [],
-        equippedTitle: "None",
+        equippedTitle: "",
         collections: {},
       },
       run: {
@@ -621,7 +283,7 @@
         monsterHp: 30,
         monsterMaxHp: 30,
         monsterTypeId: "grunt",
-        monsterName: "Wandering Slime",
+        monsterNameKey: "region.greenfields.enemy1",
         skills: {
           selected: "power",
           power: { lastUsed: 0, activeUntil: 0 },
@@ -644,7 +306,6 @@
         lastActiveAt: Date.now(),
         comboCount: 0,
         comboLastAt: 0,
-        weakPointAt: 0,
       },
       upgrades: {
         click: { level: 0, baseCost: 12 },
@@ -665,6 +326,18 @@
       sessionHistory: [],
       log: [],
       achievementFilter: "all",
+      ui: {
+        lang: localStorage.getItem(UI_LANG_KEY) || "en",
+        numFormat: localStorage.getItem(UI_NUMFMT_KEY) || "full",
+        reducedFx: localStorage.getItem(UI_FX_KEY) === "1",
+        compact: localStorage.getItem(UI_COMPACT_KEY) === "1",
+        tutorialStep: 0,
+        tutorialDone: false,
+        tutorialClicks: 0,
+        tutorialSkillUsed: false,
+        tutorialRunesOpened: false,
+        tutorialRuneBought: false,
+      },
     };
   }
 
@@ -682,7 +355,64 @@
     quests: true,
     achievements: true,
     collections: true,
+    i18n: true,
   };
+
+  function getByPath(obj, key) {
+    if (!obj || typeof key !== "string") {
+      return undefined;
+    }
+    return key.split(".").reduce((acc, part) => (acc ? acc[part] : undefined), obj);
+  }
+
+  function t(key, params = {}) {
+    if (typeof key !== "string") {
+      console.warn("t() invalid key", key);
+      return "<?>";
+    }
+    const lang = state.ui.lang || "en";
+    const fallback = getByPath(I18N.en, key) ?? key;
+    const raw = getByPath(I18N[lang] || I18N.en, key) ?? fallback;
+    if (typeof raw !== "string") {
+      return fallback;
+    }
+    return raw.replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? params[k] : `{${k}}`));
+  }
+
+  function normalizeTitleKey(value) {
+    if (!value || typeof value !== "string" || value === "None") {
+      return "";
+    }
+    if (value.startsWith("title.")) {
+      return value;
+    }
+    return TITLE_MAP[value] || value;
+  }
+
+  function getTitleLabel(value) {
+    if (!value || typeof value !== "string") {
+      return t("ui.none");
+    }
+    if (value.startsWith("title.")) {
+      return t(value);
+    }
+    return value;
+  }
+
+  function applyI18n() {
+    document.querySelectorAll("[data-i18n]").forEach((node) => {
+      node.textContent = t(node.dataset.i18n);
+    });
+    document.documentElement.lang = state.ui.lang === "ko" ? "ko" : "en";
+    el.skillSelect.querySelector("[data-skill='power']").textContent = t("ui.skillPower");
+    el.skillSelect.querySelector("[data-skill='cry']").textContent = t("ui.skillCry");
+    el.runeRefresh.textContent = t("ui.refresh");
+    el.reroll.textContent = t("ui.reroll");
+    el.tutorialNext.textContent = t("tutorial.next");
+    el.tutorialSkip.textContent = t("tutorial.skip");
+    updateSettingsButtons();
+    dirty.i18n = false;
+  }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -697,7 +427,26 @@
   }
 
   function formatNumber(value) {
-    return Math.max(0, Math.floor(value)).toLocaleString("en-US");
+    if (!Number.isFinite(value)) {
+      return "0";
+    }
+    const num = Math.max(0, Math.floor(value));
+    if (state.ui.numFormat === "abbr") {
+      const units = [
+        { v: 1e12, s: "T" },
+        { v: 1e9, s: "B" },
+        { v: 1e6, s: "M" },
+        { v: 1e3, s: "K" },
+      ];
+      for (const unit of units) {
+        if (num >= unit.v) {
+          const raw = num / unit.v;
+          const rounded = raw % 1 === 0 ? raw.toFixed(0) : raw.toFixed(1);
+          return `${rounded}${unit.s}`;
+        }
+      }
+    }
+    return num.toLocaleString("en-US");
   }
 
   function formatTimer(value) {
@@ -725,7 +474,7 @@
     return REGIONS.find((region) => zone >= region.start && zone <= region.end) || REGIONS[0];
   }
 
-  function getRegionEnemyName(region) {
+  function getRegionEnemyKey(region) {
     const idx = randInt(0, region.enemies.length - 1);
     return region.enemies[idx];
   }
@@ -751,13 +500,10 @@
       gold = Math.floor(gold * 25);
     }
 
-    const name = isChapterBoss ? "Chapter Boss" : isBoss ? `${type.label} Boss` : "Wanderer";
-
     return {
-      name,
       hp,
       gold,
-      typeLabel: type.label,
+      typeLabel: t(type.labelKey),
       dodge: type.dodge,
     };
   }
@@ -769,16 +515,16 @@
     state.run.isBoss = isBoss;
     state.run.isChapterBoss = chapter;
     state.run.monsterTypeId = typeId || rollMonsterType();
-    state.run.monsterName = chapter ? "Chapter Boss" : getRegionEnemyName(region);
+    state.run.monsterNameKey = chapter ? "ui.chapterBoss" : getRegionEnemyKey(region);
 
     const stats = getMonsterStats(state.run.zone, state.run.monsterTypeId, isBoss, chapter);
     state.run.monsterMaxHp = stats.hp;
     state.run.monsterHp = stats.hp;
 
-    el.monsterName.textContent = chapter ? "CHAPTER BOSS" : `${state.run.monsterName}`;
+    el.monsterName.textContent = chapter ? t("ui.chapterBoss") : t(state.run.monsterNameKey);
     el.monsterType.textContent = stats.typeLabel;
     el.bossIndicator.classList.toggle("active", isBoss || chapter);
-    el.bossIndicator.textContent = chapter ? "CHAPTER BOSS" : "Boss";
+    el.bossIndicator.textContent = chapter ? t("ui.chapterBoss") : t("ui.boss");
     updateRegionUi();
     updateHpUi();
     resetWeakPoint();
@@ -786,10 +532,10 @@
 
   function updateRegionUi() {
     const region = getRegionForZone(state.run.zone);
-    el.regionName.textContent = region.name;
-    el.regionSub.textContent = region.subtitle;
+    el.regionName.textContent = t(region.nameKey);
+    el.regionSub.textContent = t(region.subtitleKey);
     const nextChapter = Math.ceil(state.run.zone / 10) * 10;
-    el.chapterNext.textContent = `Chapter boss at zone ${nextChapter}`;
+    el.chapterNext.textContent = t("ui.nextChapter", { zone: formatNumber(nextChapter) });
     document.body.classList.remove(
       "region-greenfields",
       "region-ashen-ruins",
@@ -801,7 +547,7 @@
 
     if (!state.meta.regionsReached.includes(region.id)) {
       state.meta.regionsReached.push(region.id);
-      addLog(`Region reached: ${region.name}`);
+      addLog(t("log.regionReached", { name: t(region.nameKey) }));
     }
   }
 
@@ -814,6 +560,9 @@
   }
 
   function addFloatingText(label, style) {
+    if (state.ui.reducedFx && style === "") {
+      return;
+    }
     const text = document.createElement("div");
     text.className = `floating-text${style ? ` ${style}` : ""}`;
     text.textContent = label;
@@ -826,6 +575,9 @@
   }
 
   function hitEffects() {
+    if (state.ui.reducedFx) {
+      return;
+    }
     el.monster.classList.add("shake");
     el.monster.classList.add("hit");
     setTimeout(() => {
@@ -1034,30 +786,30 @@
     }
     const remaining = Math.max(0, Math.ceil((event.endAt - Date.now()) / 1000));
     el.eventBanner.classList.add("active");
-    el.eventName.textContent = event.name;
+    el.eventName.textContent = t(event.nameKey);
     el.eventTimer.textContent = formatTimer(remaining);
   }
 
   function updateComboUi() {
     const bonus = getComboBonusPercent();
-    el.comboDisplay.textContent = `Combo: ${state.run.comboCount} (+${bonus}%)`;
-    el.comboDisplay.classList.toggle("active", bonus > 0);
-    el.monsterArea.classList.toggle("combo-glow", bonus > 0);
+    el.comboDisplay.textContent = t("ui.combo", { count: formatNumber(state.run.comboCount), bonus });
+    el.comboDisplay.classList.toggle("active", bonus > 0 && !state.ui.reducedFx);
+    el.monsterArea.classList.toggle("combo-glow", bonus > 0 && !state.ui.reducedFx);
   }
 
   function updateCollectionsUi() {
     const completed = REGIONS.filter((region) => state.meta.collections[region.id]).length;
-    el.collectionSummary.textContent = `Sets completed: ${completed}/5`;
-    el.collectionBonus.textContent = `Gold bonus: +${getCollectionBonusPercent()}%`;
+    el.collectionSummary.textContent = t("ui.setsCompleted", { count: completed });
+    el.collectionBonus.textContent = t("ui.collectionBonus", { bonus: getCollectionBonusPercent() });
     el.collectionList.innerHTML = "";
     REGIONS.forEach((region) => {
       const card = document.createElement("div");
       card.className = "collection-card";
       const name = document.createElement("div");
-      name.textContent = region.setName;
+      name.textContent = t(region.setKey);
       const status = document.createElement("div");
       status.className = "stat";
-      status.textContent = state.meta.collections[region.id] ? "Discovered" : "Missing";
+      status.textContent = state.meta.collections[region.id] ? t("collection.completed") : t("collection.missing");
       card.appendChild(name);
       card.appendChild(status);
       el.collectionList.appendChild(card);
@@ -1082,7 +834,7 @@
 
       if (quest.progress >= quest.target && !quest.completed) {
         quest.completed = true;
-        addLog(`Quest complete: ${quest.title}`);
+        addLog(t("log.questComplete", { title: t(quest.titleKey) }));
         dirty.quests = true;
       }
     });
@@ -1106,7 +858,7 @@
     const event = EVENT_TYPES[randInt(0, EVENT_TYPES.length - 1)];
     state.run.event = {
       id: event.id,
-      name: event.name,
+      nameKey: event.nameKey,
       endAt: Date.now() + event.duration * 1000,
       targetType: state.run.monsterTypeId,
       critPct: event.critPct || 0,
@@ -1115,7 +867,7 @@
       autoPct: event.autoPct || 0,
       typePct: event.typePct || 0,
     };
-    addLog(`Event started: ${event.name}`);
+    addLog(t("log.eventStart", { name: t(event.nameKey) }));
     updateEventUi();
   }
 
@@ -1150,7 +902,7 @@
     if (state.run.isChapterBoss) {
       state.meta.lifetimeChapterBossKills += 1;
       state.session.chapterBossKills += 1;
-      addLog("Chapter boss defeated!");
+      addLog(t("log.chapterDefeat"));
     }
 
     updateQuests("kill", 1);
@@ -1203,13 +955,14 @@
 
     const monsterType = getMonsterType(state.run.monsterTypeId);
     if (!isWeak && monsterType.dodge > 0 && chance(monsterType.dodge)) {
-      addFloatingText("MISS", "miss");
+      addFloatingText(t("ui.miss"), "miss");
       hitEffects();
-      addLog("The runner dodged your strike.");
+      addLog(t("log.runnerDodge"));
       return;
     }
 
     registerCombo();
+    state.ui.tutorialClicks += 1;
 
     const critChance = getEffectiveCritChance();
     const isCrit = Math.random() < critChance;
@@ -1245,9 +998,11 @@
       state.run.goldEarnedThisRun += bonusGold;
       state.meta.lifetimeGold += bonusGold;
       state.session.goldEarned += bonusGold;
-      addFloatingText(`+${formatNumber(bonusGold)}g`, "weak");
-      addLog("Weak point hit!");
+      addFloatingText(`+${formatNumber(bonusGold)} ${t("ui.gold")}`, "weak");
+      addLog(t("log.weakHit"));
     }
+
+    updateTutorial();
   }
 
   function handleAutoDps() {
@@ -1282,21 +1037,21 @@
     const activeRemaining = Math.max(0, skill.activeUntil - now);
 
     if (selected === "power") {
-      el.skillTitle.textContent = "Power Strike";
-      el.skillDesc.textContent = "Click damage x3 for 4s";
+      el.skillTitle.textContent = t("ui.skillPower");
+      el.skillDesc.textContent = t("skill.powerDesc");
     } else {
-      el.skillTitle.textContent = "Battle Cry";
-      el.skillDesc.textContent = "Auto DPS x2 +20% gold for 6s";
+      el.skillTitle.textContent = t("ui.skillCry");
+      el.skillDesc.textContent = t("skill.cryDesc");
     }
 
     if (activeRemaining > 0) {
-      el.skillTimer.textContent = `Active ${formatTimer(activeRemaining / 1000)}`;
+      el.skillTimer.textContent = t("ui.skillActive", { time: formatTimer(activeRemaining / 1000) });
       el.skillActivate.classList.add("active");
     } else if (cooldownRemaining > 0) {
-      el.skillTimer.textContent = `Cooldown ${formatTimer(cooldownRemaining / 1000)}`;
+      el.skillTimer.textContent = t("ui.skillCooldown", { time: formatTimer(cooldownRemaining / 1000) });
       el.skillActivate.classList.remove("active");
     } else {
-      el.skillTimer.textContent = "Ready";
+      el.skillTimer.textContent = t("ui.skillReady");
       el.skillActivate.classList.remove("active");
     }
 
@@ -1312,48 +1067,59 @@
     el.prestige.disabled = !canPrestige;
   }
 
+  function getItemName(item) {
+    const prefix = t(item.nameParts.prefixKey);
+    const base = t(item.nameParts.baseKey);
+    return `${prefix} ${base}`.trim();
+  }
+
+  function getRuneName(rune) {
+    const rarity = t(`rarity.${rune.rarity.toLowerCase()}`);
+    return `${rarity} ${t(rune.effectLabelKey)}`.trim();
+  }
+
   function updateInventoryUi() {
     const weapon = getEquippedWeapon();
     if (weapon) {
-      el.equippedWeaponName.textContent = `${weapon.name} (${weapon.rarity})`;
+      el.equippedWeaponName.textContent = `${getItemName(weapon)} (${t(`rarity.${weapon.rarity.toLowerCase()}`)})`;
       el.equippedWeaponName.className = `equipped-name rarity-${weapon.rarity.toLowerCase()}`;
       el.equippedWeaponStat.textContent = describeItemStat(weapon);
       el.unequipWeapon.disabled = false;
     } else {
-      el.equippedWeaponName.textContent = "None";
+      el.equippedWeaponName.textContent = t("ui.none");
       el.equippedWeaponName.className = "equipped-name";
-      el.equippedWeaponStat.textContent = "No bonus";
+      el.equippedWeaponStat.textContent = t("ui.noBonus");
       el.unequipWeapon.disabled = true;
     }
 
     const relic = getEquippedRelic();
     if (relic) {
-      el.equippedRelicName.textContent = `${relic.name} (${relic.rarity})`;
+      el.equippedRelicName.textContent = `${getItemName(relic)} (${t(`rarity.${relic.rarity.toLowerCase()}`)})`;
       el.equippedRelicName.className = `equipped-name rarity-${relic.rarity.toLowerCase()}`;
       el.equippedRelicStat.textContent = describeItemStat(relic);
       el.unequipRelic.disabled = false;
     } else {
-      el.equippedRelicName.textContent = "None";
+      el.equippedRelicName.textContent = t("ui.none");
       el.equippedRelicName.className = "equipped-name";
-      el.equippedRelicStat.textContent = "No bonus";
+      el.equippedRelicStat.textContent = t("ui.noBonus");
       el.unequipRelic.disabled = true;
     }
 
     const rune = getEquippedRune();
     if (rune && relic) {
-      el.equippedRuneName.textContent = `Rune: ${rune.name} (${rune.rarity})`;
+      el.equippedRuneName.textContent = `${t("ui.rune")}: ${getRuneName(rune)} (${t(`rarity.${rune.rarity.toLowerCase()}`)})`;
       el.equippedRuneName.className = `equipped-name rarity-${rune.rarity.toLowerCase()}`;
       el.equippedRuneStat.textContent = describeRuneStat(rune);
       el.unequipRune.disabled = false;
     } else if (!relic) {
-      el.equippedRuneName.textContent = "Rune: None";
+      el.equippedRuneName.textContent = `${t("ui.rune")}: ${t("ui.none")}`;
       el.equippedRuneName.className = "equipped-name";
-      el.equippedRuneStat.textContent = "Equip a relic to socket a rune";
+      el.equippedRuneStat.textContent = t("ui.needRelicRune");
       el.unequipRune.disabled = true;
     } else {
-      el.equippedRuneName.textContent = "Rune: None";
+      el.equippedRuneName.textContent = `${t("ui.rune")}: ${t("ui.none")}`;
       el.equippedRuneName.className = "equipped-name";
-      el.equippedRuneStat.textContent = "No rune socketed";
+      el.equippedRuneStat.textContent = t("ui.noRune");
       el.unequipRune.disabled = true;
     }
 
@@ -1364,18 +1130,18 @@
 
       const name = document.createElement("div");
       name.className = `name rarity-${item.rarity.toLowerCase()}`;
-      name.textContent = `${item.name} (${item.rarity})`;
+      name.textContent = `${getItemName(item)} (${t(`rarity.${item.rarity.toLowerCase()}`)})`;
 
       const stat = document.createElement("div");
       stat.className = "stat";
-      stat.textContent = `${item.slot.toUpperCase()} | ${describeItemStat(item)}`;
+      stat.textContent = `${t(`ui.${item.slot}Slot`)} | ${describeItemStat(item)}`;
 
       const button = document.createElement("button");
       button.className = "small";
       const isEquipped =
         (item.slot === "weapon" && item.id === state.run.equippedWeaponId) ||
         (item.slot === "relic" && item.id === state.run.equippedRelicId);
-      button.textContent = isEquipped ? "Equipped" : "Equip";
+      button.textContent = isEquipped ? t("ui.equipped") : t("ui.equip");
       button.disabled = isEquipped;
       button.dataset.action = "equip-item";
       button.dataset.itemId = item.id;
@@ -1397,7 +1163,7 @@
 
       const name = document.createElement("div");
       name.className = `name rarity-${rune.rarity.toLowerCase()}`;
-      name.textContent = `${rune.name}`;
+      name.textContent = getRuneName(rune);
 
       const stat = document.createElement("div");
       stat.className = "stat";
@@ -1408,7 +1174,7 @@
 
       const button = document.createElement("button");
       button.className = "small";
-      button.textContent = "Buy";
+      button.textContent = t("ui.buy");
       button.disabled = state.run.gold < rune.cost || state.run.runes.length >= RUNE_MAX;
       button.dataset.action = "buy-rune";
       button.dataset.runeOfferId = rune.id;
@@ -1416,7 +1182,7 @@
 
       const cost = document.createElement("div");
       cost.className = "stat";
-      cost.textContent = `${formatNumber(rune.cost)}g`;
+      cost.textContent = `${formatNumber(rune.cost)} ${t("ui.gold")}`;
 
       row.appendChild(cost);
       row.appendChild(button);
@@ -1444,12 +1210,12 @@
 
       const name = document.createElement("div");
       name.className = `name rarity-${rune.rarity.toLowerCase()}`;
-      name.textContent = rune.name;
+      name.textContent = getRuneName(rune);
 
       const badge = document.createElement("div");
       if (rune.id === socketedId) {
         badge.className = "rune-badge";
-        badge.textContent = "Socketed";
+        badge.textContent = t("ui.socketed");
       }
 
       const stat = document.createElement("div");
@@ -1461,7 +1227,7 @@
 
       const button = document.createElement("button");
       button.className = "small";
-      button.textContent = rune.id === state.run.equippedRuneId ? "Socketed" : "Socket";
+      button.textContent = rune.id === state.run.equippedRuneId ? t("ui.socketed") : t("ui.socket");
       button.disabled = rune.id === state.run.equippedRuneId || !getEquippedRelic();
       button.dataset.action = "socket-rune";
       button.dataset.runeId = rune.id;
@@ -1479,7 +1245,8 @@
     });
 
     const refreshCost = state.run.freeRuneRefreshUsed ? RUNE_REFRESH_COST : 0;
-    el.runeRefresh.textContent = refreshCost === 0 ? "Refresh (Free)" : `Refresh (${refreshCost}g)`;
+    el.runeRefresh.textContent =
+      refreshCost === 0 ? t("ui.refreshFree") : t("ui.refreshCost", { cost: formatNumber(refreshCost) });
     el.runeRefresh.disabled = state.run.freeRuneRefreshUsed && state.run.gold < refreshCost;
     dirty.runes = false;
   }
@@ -1490,11 +1257,11 @@
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = quest.title;
+    title.textContent = t(quest.titleKey);
 
     const desc = document.createElement("div");
     desc.className = "quest-desc";
-    desc.textContent = quest.description;
+    desc.textContent = t(quest.descKey, { target: formatNumber(quest.target) });
 
     const progress = document.createElement("div");
     progress.className = "progress";
@@ -1509,8 +1276,18 @@
     bar.appendChild(fill);
 
     const reward = document.createElement("div");
-    const rewardLabel = quest.rewardType === "honor" ? "Honor" : quest.rewardType === "rune" ? "Rune" : "Gold";
-    reward.textContent = `Reward: ${formatNumber(quest.rewardAmount)} ${rewardLabel}`;
+    reward.className = "stat";
+    let rewardLabel = t("ui.gold");
+    let rewardAmount = formatNumber(quest.rewardAmount);
+    if (quest.rewardType === "honor") {
+      rewardLabel = t("ui.honor");
+    } else if (quest.rewardType === "rune") {
+      rewardLabel = t("ui.rune");
+    } else if (quest.rewardType === "title") {
+      rewardLabel = t("ui.title");
+      rewardAmount = getTitleLabel(quest.rewardAmount);
+    }
+    reward.textContent = `${t("ui.reward")}: ${rewardAmount} ${rewardLabel}`;
 
     const footer = document.createElement("div");
     footer.className = "quest-footer";
@@ -1518,12 +1295,12 @@
     const button = document.createElement("button");
     button.className = "small";
     if (quest.completed) {
-      button.textContent = "Claim";
+      button.textContent = t("ui.claim");
       button.dataset.action = "claim-quest";
       button.dataset.questId = quest.id;
       button.dataset.test = "quest-claim";
     } else {
-      button.textContent = "In Progress";
+      button.textContent = t("ui.inProgress");
       button.disabled = true;
     }
 
@@ -1554,10 +1331,10 @@
       card.className = "quest";
       const title = document.createElement("div");
       title.className = "title";
-      title.textContent = `${state.run.chainQuest.title} (Step ${state.run.chainQuest.stepIndex + 1}/3)`;
+      title.textContent = `${t(state.run.chainQuest.titleKey)} (${state.run.chainQuest.stepIndex + 1}/3)`;
       const desc = document.createElement("div");
       desc.className = "quest-desc";
-      desc.textContent = state.run.chainQuest.description;
+      desc.textContent = t(state.run.chainQuest.descKey, { target: formatNumber(state.run.chainQuest.target) });
       const bar = document.createElement("div");
       bar.className = "quest-bar";
       const fill = document.createElement("div");
@@ -1586,7 +1363,7 @@
     const now = Date.now();
     const remaining = Math.max(0, state.run.weeklyResetAt - now);
     const days = Math.ceil(remaining / (24 * 60 * 60 * 1000));
-    el.weeklyReset.textContent = `Resets in ${days}d`;
+    el.weeklyReset.textContent = t("ui.weeklyReset", { days });
   }
 
   function updateAchievementsUi() {
@@ -1605,17 +1382,17 @@
       const card = document.createElement("div");
       card.className = `achievement-card${unlocked ? "" : " locked"}`;
       const title = document.createElement("div");
-      title.textContent = ach.title;
+      title.textContent = t(ach.titleKey);
       const desc = document.createElement("div");
-      desc.textContent = ach.desc;
+      desc.textContent = t(ach.descKey);
       const status = document.createElement("div");
       status.className = "stat";
       status.textContent = unlocked
-        ? `Unlocked: ${new Date(state.meta.achievements[ach.id]).toLocaleDateString()}`
-        : "Locked";
+        ? `${t("ui.unlocked")}: ${new Date(state.meta.achievements[ach.id]).toLocaleDateString()}`
+        : t("ui.locked");
       const reward = document.createElement("div");
       reward.className = "stat";
-      reward.textContent = `Title: ${ach.titleReward}`;
+      reward.textContent = `${t("ui.reward")}: ${t(ach.rewardKey)}`;
 
       card.appendChild(title);
       card.appendChild(desc);
@@ -1629,13 +1406,16 @@
   }
 
   function updateTitleSelect() {
-    const titles = ["None", ...state.meta.titlesUnlocked];
+    const titles = ["", ...state.meta.titlesUnlocked];
+    if (state.meta.equippedTitle && !titles.includes(state.meta.equippedTitle)) {
+      titles.push(state.meta.equippedTitle);
+    }
     el.titleSelect.innerHTML = "";
-    titles.forEach((title) => {
+    titles.forEach((titleKey) => {
       const option = document.createElement("option");
-      option.value = title;
-      option.textContent = title;
-      if (title === state.meta.equippedTitle) {
+      option.value = titleKey;
+      option.textContent = titleKey ? getTitleLabel(titleKey) : t("ui.none");
+      if (titleKey === state.meta.equippedTitle) {
         option.selected = true;
       }
       el.titleSelect.appendChild(option);
@@ -1650,10 +1430,10 @@
       }
       if (ach.check(state)) {
         state.meta.achievements[ach.id] = Date.now();
-        if (!state.meta.titlesUnlocked.includes(ach.titleReward)) {
-          state.meta.titlesUnlocked.push(ach.titleReward);
+        if (!state.meta.titlesUnlocked.includes(ach.rewardKey)) {
+          state.meta.titlesUnlocked.push(ach.rewardKey);
         }
-        addLog(`Achievement unlocked: ${ach.title}`);
+        addLog(t("log.achievement", { title: t(ach.titleKey) }));
         unlockedAny = true;
       }
     });
@@ -1672,85 +1452,103 @@
     const rune = getRuneBonuses();
     const event = getEventState();
     el.devInfo.textContent = [
-      `Click Damage: ${getEffectiveClickDamage(true)}`,
-      `Auto DPS: ${Math.floor(getEffectiveAutoDps(true))}`,
-      `Crit Chance: ${Math.floor(getEffectiveCritChance() * 100)}%`,
-      `Crit Mult: ${getEffectiveCritMultiplier().toFixed(2)}x`,
-      `Gold Bonus: ${getGoldBonusPercent()}%`,
-      `Rune: boss ${rune.bossPct}% | gold ${rune.goldPct}% | crit ${rune.critPct}% | cd ${rune.cooldownPct}% | click ${rune.clickPct}% | auto ${rune.autoPct}%`,
-      `Event: ${event ? event.name : "None"}`,
-      `Monster HP: ${state.run.monsterHp}/${state.run.monsterMaxHp}`,
-      `Monster Type: ${state.run.monsterTypeId}`,
-      `Boss: ${state.run.isBoss} | Chapter: ${state.run.isChapterBoss}`,
+      `${t("ui.clickDamage")}: ${formatNumber(getEffectiveClickDamage(true))}`,
+      `${t("ui.autoDps")}: ${formatNumber(getEffectiveAutoDps(true))}`,
+      `${t("ui.critChance")}: ${Math.floor(getEffectiveCritChance() * 100)}%`,
+      `${t("ui.critMult")}: ${getEffectiveCritMultiplier().toFixed(2)}x`,
+      `${t("ui.goldBonus")}: ${formatNumber(getGoldBonusPercent())}%`,
+      `${t("ui.rune")}: ${t("rune.effect.boss")} ${rune.bossPct}% | ${t("rune.effect.greed")} ${rune.goldPct}% | ${t("rune.effect.precision")} ${rune.critPct}% | ${t("rune.effect.swiftness")} ${rune.cooldownPct}% | ${t("rune.effect.fury")} ${rune.clickPct}% | ${t("rune.effect.tinker")} ${rune.autoPct}%`,
+      `${t("ui.event")}: ${event ? t(event.nameKey) : t("ui.none")}`,
+      `${t("ui.monsterHp")}: ${formatNumber(state.run.monsterHp)}/${formatNumber(state.run.monsterMaxHp)}`,
+      `${t("ui.monsterType")}: ${t(getMonsterType(state.run.monsterTypeId).labelKey)}`,
+      `${t("ui.boss")}: ${state.run.isBoss} | ${t("ui.chapterBoss")}: ${state.run.isChapterBoss}`,
     ].join("\n");
   }
 
-  function devNote(message) {
-    if (devMode) {
-      addLog(message);
+  function updateTutorial() {
+    if (state.ui.tutorialDone) {
+      el.tutorialBox.classList.add("hidden");
+      return;
     }
+
+    const step = state.ui.tutorialStep;
+    let done = false;
+    if (step === 0 && state.ui.tutorialClicks >= 5) {
+      state.ui.tutorialStep = 1;
+    } else if (step === 1 && state.upgrades.click.level >= 1) {
+      state.ui.tutorialStep = 2;
+    } else if (step === 2 && state.upgrades.auto.level >= 1) {
+      state.ui.tutorialStep = 3;
+    } else if (step === 3 && state.ui.tutorialSkillUsed) {
+      state.ui.tutorialStep = 4;
+    } else if (step === 4 && state.ui.tutorialRuneBought) {
+      state.ui.tutorialDone = true;
+      done = true;
+    }
+
+    if (done || state.ui.tutorialDone) {
+      el.tutorialBox.classList.add("hidden");
+      return;
+    }
+
+    el.tutorialBox.classList.remove("hidden");
+    el.tutorialTitle.textContent = t("tutorial.title");
+    const steps = [
+      t("tutorial.step1"),
+      t("tutorial.step2"),
+      t("tutorial.step3"),
+      t("tutorial.step4"),
+      t("tutorial.step5"),
+    ];
+    let text = steps[state.ui.tutorialStep] || "";
+    if (state.ui.tutorialStep === 4 && state.run.gold < 100) {
+      text = `${text} ${t("tutorial.moreGold")}`;
+    }
+    el.tutorialText.textContent = text;
   }
 
-  function onGlobalClick(event) {
-    const button = event.target.closest("button[data-action], [role='button'][data-action]");
-    if (!button) {
-      return;
-    }
-    if (button.disabled) {
-      devNote(`Action blocked: ${button.dataset.action}`);
-      return;
-    }
-    if (clickCheckEnabled) {
-      const rect = button.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      const top = document.elementFromPoint(x, y);
-      if (!top || (top !== button && !button.contains(top))) {
-        const blocker = top ? `${top.tagName}.${top.className || "no-class"}` : "unknown";
-        addLog(`CLICK BLOCKED by ${blocker}`);
-      }
-    }
-    try {
-      const action = button.dataset.action;
-      if (action === "equip-item") {
-        equipItem(button.dataset.itemId);
-      } else if (action === "unequip-weapon") {
-        unequipWeapon();
-      } else if (action === "unequip-relic") {
-        unequipRelic();
-      } else if (action === "unequip-rune") {
-        removeRune();
-      } else if (action === "buy-rune") {
-        buyRune(button.dataset.runeOfferId);
-      } else if (action === "refresh-rune-shop") {
-        refreshRuneShop(false);
-      } else if (action === "socket-rune") {
-        socketRune(button.dataset.runeId);
-      } else if (action === "claim-quest") {
-        claimQuest(button.dataset.questId);
-      } else if (action === "reroll-quest") {
-        rerollQuests();
-      }
-    } catch (error) {
-      console.error(error);
-      addLog("Action error. Check console.");
-    }
+  function updateSettingsButtons() {
+    document.querySelectorAll("[data-action='set-numfmt']").forEach((btn) => {
+      const value = btn.dataset.value;
+      btn.textContent = value === "full" ? t("settings.full") : t("settings.abbr");
+      btn.classList.toggle("is-active", state.ui.numFormat === value);
+    });
+    document.querySelectorAll("[data-action='set-reducedfx']").forEach((btn) => {
+      const value = btn.dataset.value;
+      btn.textContent = value === "on" ? t("settings.on") : t("settings.off");
+      btn.classList.toggle("is-active", (state.ui.reducedFx ? "on" : "off") === value);
+    });
+    document.querySelectorAll("[data-action='set-lang']").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.lang === state.ui.lang);
+    });
+    document.querySelectorAll("[data-action='toggle-dev']").forEach((btn) => {
+      btn.textContent = devMode ? t("settings.on") : t("settings.off");
+      btn.classList.toggle("is-active", devMode);
+    });
+    document.querySelectorAll("[data-action='toggle-compact']").forEach((btn) => {
+      btn.textContent = state.ui.compact ? t("settings.on") : t("settings.off");
+      btn.classList.toggle("is-active", state.ui.compact);
+    });
+    el.clickCheck.textContent = clickCheckEnabled ? t("ui.clickCheckOn") : t("ui.clickCheckOff");
   }
 
   function updateUi() {
+    if (dirty.i18n) {
+      applyI18n();
+    }
     el.gold.textContent = formatNumber(state.run.gold);
     el.honor.textContent = formatNumber(state.meta.totalHonor);
     el.dmgMult.textContent = `${getHonorMultiplier().toFixed(2)}x`;
     el.zone.textContent = formatNumber(state.run.zone);
     el.kills.textContent = formatNumber(state.run.killsTotal);
-    el.titleDisplay.textContent = state.meta.equippedTitle || "None";
+    el.titleDisplay.textContent = getTitleLabel(state.meta.equippedTitle);
 
     el.clickDmg.textContent = formatNumber(getEffectiveClickDamage(true));
     el.autoDps.textContent = formatNumber(getEffectiveAutoDps(true));
     el.critChance.textContent = `${Math.floor(getEffectiveCritChance() * 100)}%`;
     el.critMulti.textContent = `${getEffectiveCritMultiplier().toFixed(2)}x`;
     el.goldBonus.textContent = `${formatNumber(getGoldBonusPercent())}%`;
-    el.zoneProgress.textContent = `${formatNumber(state.run.killsInZone)} / ${ZONE_KILLS}`;
+    el.zoneProgress.textContent = `${formatNumber(state.run.killsInZone)} / ${formatNumber(ZONE_KILLS)}`;
 
     el.lvlClick.textContent = formatNumber(state.upgrades.click.level);
     el.lvlAuto.textContent = formatNumber(state.upgrades.auto.level);
@@ -1772,10 +1570,6 @@
     el.buyCrit.disabled = state.run.gold < costCrit || getEffectiveCritChance() >= 0.5;
     el.buyMulti.disabled = state.run.gold < costMulti || state.run.critMultiplierBase >= 3.0;
 
-    const rerollCost = state.run.freeRerollUsed ? 500 : 0;
-    el.reroll.textContent = rerollCost === 0 ? "Reroll (Free)" : "Reroll (500g)";
-    el.reroll.disabled = state.run.freeRerollUsed && state.run.gold < 500;
-
     updateComboUi();
     updateSkillUi();
     updatePrestigeUi();
@@ -1783,6 +1577,8 @@
     updateEventUi();
     updateLogUi();
     updateDevUi();
+    updateTutorial();
+
     const newAch = checkAchievements();
     if (dirty.inventory) {
       updateInventoryUi();
@@ -1834,6 +1630,7 @@
     }
 
     updateUi();
+    updateTutorial();
   }
 
   function getEquipmentRarity() {
@@ -1854,7 +1651,7 @@
     }
 
     if (state.run.inventory.length >= INVENTORY_MAX) {
-      addLog("Inventory full. Gear discarded.");
+      addLog(t("log.inventoryFull"));
       return;
     }
 
@@ -1881,13 +1678,15 @@
     state.meta.collections[item.setId] = true;
     dirty.collections = true;
     if (Object.values(state.meta.collections).filter(Boolean).length >= 5) {
-      if (!state.meta.titlesUnlocked.includes("Collector")) {
-        state.meta.titlesUnlocked.push("Collector");
+      const collector = t("title.collector");
+      if (!state.meta.titlesUnlocked.includes(collector)) {
+        state.meta.titlesUnlocked.push(collector);
       }
     }
 
-    addLog(`Found ${rarity} ${slot}: ${item.name}.`);
-    updateInventoryUi();
+    addLog(`${t("ui.found")} ${t(`rarity.${rarity.toLowerCase()}`)} ${t(`ui.${slot}`)}: ${getItemName(item)}.`);
+    dirty.inventory = true;
+    updateUi();
   }
 
   function generateEquipmentItem(rarity, slot, setId) {
@@ -1925,45 +1724,45 @@
 
     return {
       id: `item-${Date.now()}-${randInt(1000, 9999)}`,
-      name: generateItemName(rarity, slot),
       rarity,
       slot,
       statType,
       statValue,
       setId,
+      nameParts: generateItemNameParts(slot),
     };
   }
 
-  function generateItemName(rarity, slot) {
-    const prefix = ["Old", "Runed", "Gleaming", "Cursed", "Ancient", "Sturdy"];
-    const weapons = ["Blade", "Axe", "Spear", "Hammer", "Dagger", "Mace"];
-    const relics = ["Relic", "Talisman", "Sigil", "Charm", "Emblem", "Token"];
-    const p = prefix[randInt(0, prefix.length - 1)];
-    const r = slot === "weapon" ? weapons[randInt(0, weapons.length - 1)] : relics[randInt(0, relics.length - 1)];
-    return `${p} ${rarity} ${r}`;
+  function generateItemNameParts(slot) {
+    const prefixKey = CONTENT.itemNames.prefixes[randInt(0, CONTENT.itemNames.prefixes.length - 1)];
+    const baseKey =
+      slot === "weapon"
+        ? CONTENT.itemNames.weapons[randInt(0, CONTENT.itemNames.weapons.length - 1)]
+        : CONTENT.itemNames.relics[randInt(0, CONTENT.itemNames.relics.length - 1)];
+    return { prefixKey, baseKey };
   }
 
   function describeItemStat(item) {
     if (item.statType === "click") {
-      return `+${formatNumber(item.statValue)} Click Damage`;
+      return `+${formatNumber(item.statValue)} ${t("ui.clickDamage")}`;
     }
     if (item.statType === "auto") {
-      return `+${formatNumber(item.statValue)} Auto DPS`;
+      return `+${formatNumber(item.statValue)} ${t("ui.autoDps")}`;
     }
     if (item.statType === "crit") {
-      return `+${formatNumber(item.statValue)}% Crit Chance`;
+      return `+${formatNumber(item.statValue)}% ${t("ui.critChance")}`;
     }
     if (item.statType === "gold") {
-      return `+${formatNumber(item.statValue)}% Gold`;
+      return `+${formatNumber(item.statValue)}% ${t("ui.gold")}`;
     }
     if (item.statType === "critMult") {
-      return `+${item.statValue.toFixed(2)} Crit Mult`;
+      return `+${item.statValue.toFixed(2)} ${t("ui.critMult")}`;
     }
     return "";
   }
 
   function describeRuneStat(rune) {
-    return `${rune.effectLabel} ${formatNumber(rune.value)}%`;
+    return `${t(rune.effectLabelKey)} ${formatNumber(rune.value)}%`;
   }
 
   function equipItem(itemId) {
@@ -1974,13 +1773,14 @@
 
     if (item.slot === "weapon") {
       state.run.equippedWeaponId = item.id;
-      addLog(`Equipped Weapon: ${item.name}.`);
+      addLog(t("log.equippedWeapon", { name: getItemName(item) }));
     } else {
       state.run.equippedRelicId = item.id;
-      addLog(`Equipped Relic: ${item.name}.`);
+      addLog(t("log.equippedRelic", { name: getItemName(item) }));
     }
     dirty.inventory = true;
     updateUi();
+    updateTutorial();
   }
 
   function unequipWeapon() {
@@ -1988,7 +1788,7 @@
       return;
     }
     state.run.equippedWeaponId = null;
-    addLog("Weapon unequipped.");
+    addLog(t("log.unequipWeapon"));
     dirty.inventory = true;
     updateUi();
   }
@@ -1999,7 +1799,7 @@
     }
     state.run.equippedRelicId = null;
     state.run.equippedRuneId = null;
-    addLog("Relic unequipped.");
+    addLog(t("log.unequipRelic"));
     dirty.inventory = true;
     updateUi();
   }
@@ -2022,10 +1822,9 @@
 
     return {
       id: `rune-${Date.now()}-${randInt(1000, 9999)}`,
-      name: `${rarity} ${effect.label}`,
       rarity,
       effect: effect.id,
-      effectLabel: effect.label,
+      effectLabelKey: effect.labelKey,
       value,
       cost: Math.floor(120 + value * 20),
     };
@@ -2045,14 +1844,14 @@
     }
 
     state.run.runeShop = [generateRune(), generateRune(), generateRune(), generateRune()];
-    addLog("Rune shop refreshed.");
+    addLog(t("log.shopRefresh"));
     dirty.runes = true;
     updateUi();
   }
 
   function addRuneToInventory(rune) {
     if (state.run.runes.length >= RUNE_MAX) {
-      addLog("Rune pouch full. Rune discarded.");
+      addLog(t("log.runeFull"));
       return false;
     }
     state.run.runes.push(rune);
@@ -2080,7 +1879,7 @@
     }
     if (state.run.gold < rune.cost || state.run.runes.length >= RUNE_MAX) {
       if (state.run.gold < rune.cost) {
-        addLog("Not enough gold.");
+        addLog(t("log.notEnoughGold"));
       }
       return;
     }
@@ -2088,10 +1887,12 @@
     state.run.gold -= rune.cost;
     const purchased = addRuneToInventory({ ...rune, cost: undefined });
     if (purchased) {
-      addLog(`Bought Rune: ${rune.name}.`);
+      addLog(t("log.boughtRune", { name: getRuneName(rune) }));
       state.run.runeShop.splice(runeIndex, 1, generateRune());
       dirty.runes = true;
       updateUi();
+      state.ui.tutorialRuneBought = true;
+      updateTutorial();
     }
   }
 
@@ -2105,7 +1906,7 @@
     }
 
     state.run.equippedRuneId = rune.id;
-    addLog(`Socketed rune: ${rune.name}.`);
+    addLog(t("log.socketedRune", { name: getRuneName(rune) }));
     dirty.runes = true;
     updateUi();
   }
@@ -2117,27 +1918,41 @@
     const rune = getEquippedRune();
     state.run.equippedRuneId = null;
     if (rune) {
-      addLog(`Rune removed: ${rune.name}.`);
+      addLog(t("log.removedRune", { name: getRuneName(rune) }));
     }
     dirty.runes = true;
     updateUi();
   }
 
   function createQuest() {
+    if (!QUEST_TEMPLATES.length) {
+      return {
+        id: `quest-${Date.now()}-${randInt(1000, 9999)}`,
+        templateId: "fallback",
+        titleKey: "quest.kill_basic.title",
+        descKey: "quest.kill_basic.desc",
+        type: "kill",
+        target: 10,
+        progress: 0,
+        completed: false,
+        rewardType: "gold",
+        rewardAmount: 50,
+      };
+    }
     const template = QUEST_TEMPLATES[randInt(0, QUEST_TEMPLATES.length - 1)];
-    const target = template.target();
-    const reward = template.reward();
+    const target = randInt(template.target[0], template.target[1]);
+    const reward = template.reward;
     return {
       id: `quest-${Date.now()}-${randInt(1000, 9999)}`,
       templateId: template.id,
-      title: template.title,
-      description: template.desc(target),
+      titleKey: template.titleKey,
+      descKey: template.descKey,
       type: template.type,
       target,
       progress: 0,
       completed: false,
       rewardType: reward.type,
-      rewardAmount: reward.amount,
+      rewardAmount: reward.type === "title" ? reward.min : randInt(reward.min, reward.max),
     };
   }
 
@@ -2151,19 +1966,32 @@
   }
 
   function createWeeklyQuest() {
+    if (!WEEKLY_TEMPLATES.length) {
+      return {
+        id: `weekly-${Date.now()}-${randInt(1000, 9999)}`,
+        titleKey: "quest.weekly_kills.title",
+        descKey: "quest.weekly_kills.desc",
+        type: "kill",
+        target: 50,
+        progress: 0,
+        completed: false,
+        rewardType: "honor",
+        rewardAmount: 1,
+      };
+    }
     const template = WEEKLY_TEMPLATES[randInt(0, WEEKLY_TEMPLATES.length - 1)];
-    const target = template.target();
-    const reward = template.reward();
+    const target = randInt(template.target[0], template.target[1]);
+    const reward = template.reward;
     return {
       id: `weekly-${Date.now()}-${randInt(1000, 9999)}`,
-      title: template.title,
-      description: template.desc(target),
+      titleKey: template.titleKey,
+      descKey: template.descKey,
       type: template.type,
       target,
       progress: 0,
       completed: false,
       rewardType: reward.type,
-      rewardAmount: reward.amount,
+      rewardAmount: reward.type === "title" ? reward.min : randInt(reward.min, reward.max),
     };
   }
 
@@ -2176,16 +2004,27 @@
   }
 
   function createChainQuest() {
+    if (!CHAIN_TEMPLATES.length) {
+      return {
+        templateId: "fallback",
+        titleKey: "quest.chain_slayer",
+        stepIndex: 0,
+        type: "kill",
+        target: 20,
+        progress: 0,
+        descKey: "quest.chain_slayer_1",
+      };
+    }
     const template = CHAIN_TEMPLATES[randInt(0, CHAIN_TEMPLATES.length - 1)];
     const step = template.steps[0];
     return {
       templateId: template.id,
-      title: template.title,
+      titleKey: template.titleKey,
       stepIndex: 0,
       type: step.type,
       target: step.target,
       progress: 0,
-      description: step.desc,
+      descKey: step.descKey,
     };
   }
 
@@ -2212,10 +2051,10 @@
       state.run.chainQuest.type = step.type;
       state.run.chainQuest.target = step.target;
       state.run.chainQuest.progress = 0;
-      state.run.chainQuest.description = step.desc;
+      state.run.chainQuest.descKey = step.descKey;
     } else {
       state.run.chainCompletedAt = Date.now();
-      addLog("Quest chain completed!");
+      addLog(t("log.chainComplete"));
     }
   }
 
@@ -2238,7 +2077,7 @@
     }
     if (quest.progress >= quest.target) {
       quest.completed = true;
-      addLog(`Weekly quest complete: ${quest.title}`);
+      addLog(t("log.weeklyComplete", { title: t(quest.titleKey) }));
       dirty.quests = true;
     }
   }
@@ -2291,25 +2130,27 @@
     if (quest.rewardType === "honor") {
       state.meta.totalHonor += quest.rewardAmount;
       state.session.honorGained += quest.rewardAmount;
-      rewardText = `+${formatNumber(quest.rewardAmount)} Honor`;
+      rewardText = `+${formatNumber(quest.rewardAmount)} ${t("ui.honor")}`;
     } else if (quest.rewardType === "rune") {
       const rune = generateRune();
       addRuneToInventory(rune);
-      addLog(`Quest reward: ${rune.name}.`);
-      rewardText = "+Rune";
+      addLog(t("log.questRewardRune", { name: getRuneName(rune) }));
+      rewardText = t("ui.rune");
     } else if (quest.rewardType === "title") {
-      if (!state.meta.titlesUnlocked.includes(quest.rewardAmount)) {
-        state.meta.titlesUnlocked.push(quest.rewardAmount);
+      const titleKey = normalizeTitleKey(quest.rewardAmount);
+      if (titleKey && !state.meta.titlesUnlocked.includes(titleKey)) {
+        state.meta.titlesUnlocked.push(titleKey);
+        dirty.achievements = true;
       }
-      rewardText = `Title: ${quest.rewardAmount}`;
+      rewardText = getTitleLabel(titleKey || quest.rewardAmount);
     } else {
       state.run.gold += quest.rewardAmount;
-      rewardText = `+${formatNumber(quest.rewardAmount)} Gold`;
+      rewardText = `+${formatNumber(quest.rewardAmount)} ${t("ui.gold")}`;
     }
 
     state.meta.lifetimeQuestClaims += 1;
     state.session.questsCompleted += 1;
-    addLog(`Claimed Quest: ${quest.title} (${rewardText}).`);
+    addLog(t("log.claimQuest", { title: t(quest.titleKey), reward: rewardText }));
     updateUi();
   }
 
@@ -2329,7 +2170,7 @@
     }
 
     state.run.quests = [createQuest(), createQuest(), createQuest()];
-    addLog("Quests rerolled.");
+    addLog(t("ui.reroll"));
     dirty.quests = true;
     updateUi();
   }
@@ -2344,20 +2185,22 @@
     const skill = state.run.skills[selected];
     const cooldownRemaining = cooldown - (now - skill.lastUsed);
     if (cooldownRemaining > 0) {
-      addLog("Skill is on cooldown.");
+      addLog(t("ui.onCooldown"));
       return;
     }
 
     skill.lastUsed = now;
     if (selected === "power") {
       skill.activeUntil = now + SKILL_DURATION_MS;
-      addLog("Power Strike activated.");
+      addLog(t("ui.skillPower"));
     } else {
       skill.activeUntil = now + CRY_DURATION_MS;
-      addLog("Battle Cry activated.");
+      addLog(t("ui.skillCry"));
     }
     state.meta.lifetimeSkillUses += 1;
+    state.ui.tutorialSkillUsed = true;
     updateUi();
+    updateTutorial();
   }
 
   function selectSkill(skillId) {
@@ -2373,7 +2216,7 @@
       return;
     }
 
-    const ok = window.confirm("Prestige and reset this run for Honor?");
+    const ok = window.confirm(t("ui.confirmPrestige"));
     if (!ok) {
       return;
     }
@@ -2386,7 +2229,7 @@
     state.meta.totalHonor += honorGained;
     state.meta.lifetimePrestiges += 1;
     state.session.honorGained += honorGained;
-    addLog(`Prestiged for ${honorGained} Honor.`);
+    addLog(t("log.prestige", { amount: formatNumber(honorGained) }));
     finalizeSession();
     resetRun();
     saveGame();
@@ -2476,36 +2319,39 @@
   }
 
   function showOfflineModal(goldGain, killsGain) {
-    el.offlineText.textContent = `While you were away: +${formatNumber(
-      goldGain
-    )} gold, +${formatNumber(killsGain)} kills.`;
+    el.offlineText.textContent = t("ui.offlineGain", {
+      gold: formatNumber(goldGain),
+      kills: formatNumber(killsGain),
+    });
     el.offlineModal.classList.add("active");
   }
 
   function showSessionReport() {
     const current = state.session;
     const last = state.sessionHistory[0];
-    const format = (session, label) => {
+    const format = (session, labelKey) => {
       if (!session) {
-        return `${label}: None`;
+        return `${t(labelKey)}: ${t("ui.none")}`;
       }
       return [
-        `${label}:`,
-        `Start: ${new Date(session.startAt).toLocaleString()}`,
-        session.endAt ? `End: ${new Date(session.endAt).toLocaleString()}` : "End: Active",
-        `Gold Earned: ${formatNumber(session.goldEarned)}`,
-        `Kills: ${formatNumber(session.kills)}`,
-        `Boss Kills: ${formatNumber(session.bossKills)}`,
-        `Chapter Boss Kills: ${formatNumber(session.chapterBossKills)}`,
-        `Honor Gained: ${formatNumber(session.honorGained)}`,
-        `Drops (C/R/E): ${session.drops.Common}/${session.drops.Rare}/${session.drops.Epic}`,
-        `Quests Completed: ${formatNumber(session.questsCompleted)}`,
+        `${t(labelKey)}:`,
+        `${t("ui.sessionStart")}: ${new Date(session.startAt).toLocaleString()}`,
+        session.endAt
+          ? `${t("ui.sessionEnd")}: ${new Date(session.endAt).toLocaleString()}`
+          : `${t("ui.sessionEnd")}: ${t("ui.active")}`,
+        `${t("ui.gold")}: ${formatNumber(session.goldEarned)}`,
+        `${t("ui.kills")}: ${formatNumber(session.kills)}`,
+        `${t("ui.boss")}: ${formatNumber(session.bossKills)}`,
+        `${t("ui.chapterBoss")}: ${formatNumber(session.chapterBossKills)}`,
+        `${t("ui.honor")}: ${formatNumber(session.honorGained)}`,
+        `${t("ui.drops")}: ${session.drops.Common}/${session.drops.Rare}/${session.drops.Epic}`,
+        `${t("ui.quests")}: ${formatNumber(session.questsCompleted)}`,
       ].join("\n");
     };
 
-    el.sessionContent.textContent = `${format(current, "Current Session")}\n\n${format(
+    el.sessionContent.textContent = `${format(current, "ui.currentSession")}\n\n${format(
       last,
-      "Last Completed Session"
+      "ui.lastSession"
     )}`;
     el.sessionModal.classList.add("active");
   }
@@ -2514,13 +2360,14 @@
     state.run.lastActiveAt = Date.now();
     const runSave = { ...state.run, comboCount: 0, comboLastAt: 0 };
     const payload = {
-      version: "v0.4",
+      version: "v0.5",
       meta: state.meta,
       run: runSave,
       upgrades: state.upgrades,
       log: state.log,
       session: state.session,
       sessionHistory: state.sessionHistory,
+      ui: state.ui,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -2547,21 +2394,39 @@
     state.sessionHistory = Array.isArray(data.sessionHistory) ? data.sessionHistory : [];
     state.log = Array.isArray(data.log) ? data.log : [];
 
+    state.ui = { ...defaults.ui, ...(data.ui || {}) };
+    if (!data.ui || data.ui.tutorialDone === undefined) {
+      state.ui.tutorialDone = true;
+    }
+    if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
+      state.ui.lang = "en";
+    }
+    if (state.ui.numFormat !== "full" && state.ui.numFormat !== "abbr") {
+      state.ui.numFormat = "full";
+    }
+
+    const normalizedTitles = state.meta.titlesUnlocked.map((title) => normalizeTitleKey(title));
+    state.meta.titlesUnlocked = Array.from(new Set(normalizedTitles.filter((title) => title)));
+    state.meta.equippedTitle = normalizeTitleKey(state.meta.equippedTitle);
+
     state.run.critChanceBase = clamp(state.run.critChanceBase, 0, 0.5);
     state.run.critMultiplierBase = clamp(state.run.critMultiplierBase, 1.5, 3.0);
     state.run.gold = Math.max(0, state.run.gold || 0);
     state.run.zone = Math.max(1, state.run.zone || 1);
     state.run.highestZone = Math.max(state.run.zone, state.run.highestZone || state.run.zone);
 
-      if (!Array.isArray(state.run.inventory)) {
-        state.run.inventory = [];
+    if (!Array.isArray(state.run.inventory)) {
+      state.run.inventory = [];
+    }
+    state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
+    state.run.inventory.forEach((item) => {
+      if (!item.slot) {
+        item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
       }
-      state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
-      state.run.inventory.forEach((item) => {
-        if (!item.slot) {
-          item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
-        }
-      });
+      if (!item.nameParts) {
+        item.nameParts = generateItemNameParts(item.slot);
+      }
+    });
     if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
       state.run.equippedRelicId = null;
     }
@@ -2595,6 +2460,7 @@
     dirty.quests = true;
     dirty.collections = true;
     dirty.achievements = true;
+    dirty.i18n = true;
   }
 
   function loadState() {
@@ -2641,6 +2507,17 @@
       }
       state.log = Array.isArray(data.log) ? data.log : [];
 
+      state.ui = { ...defaults.ui, ...(data.ui || {}) };
+      if (!data.ui || data.ui.tutorialDone === undefined) {
+        state.ui.tutorialDone = true;
+      }
+      if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
+        state.ui.lang = "en";
+      }
+      if (state.ui.numFormat !== "full" && state.ui.numFormat !== "abbr") {
+        state.ui.numFormat = "full";
+      }
+
       if (!data.meta && typeof data.gold === "number") {
         state.run.gold = data.gold;
         state.run.zone = data.zone ?? state.run.zone;
@@ -2656,9 +2533,9 @@
         state.upgrades = data.upgrades ?? state.upgrades;
       }
 
-      if (state.run.equippedRelicId && !state.run.equippedWeaponId) {
-        state.run.equippedWeaponId = null;
-      }
+      const normalizedTitles = state.meta.titlesUnlocked.map((title) => normalizeTitleKey(title));
+      state.meta.titlesUnlocked = Array.from(new Set(normalizedTitles.filter((title) => title)));
+      state.meta.equippedTitle = normalizeTitleKey(state.meta.equippedTitle);
 
       state.run.comboCount = 0;
       state.run.comboLastAt = 0;
@@ -2669,20 +2546,23 @@
       state.run.zone = Math.max(1, state.run.zone || 1);
       state.run.highestZone = Math.max(state.run.zone, state.run.highestZone || state.run.zone);
 
-    if (!Array.isArray(state.run.inventory)) {
-      state.run.inventory = [];
-    }
-    state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
-    state.run.inventory.forEach((item) => {
-      if (!item.slot) {
-        item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
+      if (!Array.isArray(state.run.inventory)) {
+        state.run.inventory = [];
       }
-    });
-    if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
-      state.run.equippedRelicId = null;
-    }
-    if (!state.run.inventory.find((item) => item.id === state.run.equippedWeaponId)) {
-      state.run.equippedWeaponId = null;
+      state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
+      state.run.inventory.forEach((item) => {
+        if (!item.slot) {
+          item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
+        }
+        if (!item.nameParts) {
+          item.nameParts = generateItemNameParts(item.slot);
+        }
+      });
+      if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
+        state.run.equippedRelicId = null;
+      }
+      if (!state.run.inventory.find((item) => item.id === state.run.equippedWeaponId)) {
+        state.run.equippedWeaponId = null;
       }
 
       if (!Array.isArray(state.run.runes)) {
@@ -2723,6 +2603,7 @@
       dirty.quests = true;
       dirty.collections = true;
       dirty.achievements = true;
+      dirty.i18n = true;
     } catch (error) {
       spawnMonster(false);
       ensureQuests();
@@ -2736,7 +2617,7 @@
     if (testMode) {
       return;
     }
-    const ok = window.confirm("Reset all progress?");
+    const ok = window.confirm(t("ui.confirmReset"));
     if (!ok) {
       return;
     }
@@ -2746,19 +2627,37 @@
   }
 
   function setCompactMode(enabled) {
+    state.ui.compact = enabled;
     if (enabled) {
       document.body.classList.add("compact");
+      localStorage.setItem(UI_COMPACT_KEY, "1");
     } else {
       document.body.classList.remove("compact");
+      localStorage.setItem(UI_COMPACT_KEY, "0");
     }
-    localStorage.setItem(UI_COMPACT_KEY, enabled ? "1" : "0");
-    el.compactToggle.textContent = enabled ? "Compact: On" : "Compact: Off";
+    updateSettingsButtons();
   }
 
-  function initCompactMode() {
-    const stored = localStorage.getItem(UI_COMPACT_KEY);
-    const enabled = stored === "1";
-    setCompactMode(enabled);
+  function setLang(lang) {
+    state.ui.lang = lang;
+    localStorage.setItem(UI_LANG_KEY, lang);
+    dirty.i18n = true;
+    updateUi();
+  }
+
+  function setNumFormat(value) {
+    state.ui.numFormat = value;
+    localStorage.setItem(UI_NUMFMT_KEY, value);
+    updateSettingsButtons();
+    updateUi();
+  }
+
+  function setReducedFx(value) {
+    state.ui.reducedFx = value;
+    localStorage.setItem(UI_FX_KEY, value ? "1" : "0");
+    document.body.classList.toggle("reduced-fx", value);
+    updateSettingsButtons();
+    updateUi();
   }
 
   function initTabs() {
@@ -2770,6 +2669,10 @@
       panels.forEach((panel) =>
         panel.classList.toggle("is-active", panel.dataset.tabPanel === tab)
       );
+      if (tab === "runes") {
+        state.ui.tutorialRunesOpened = true;
+      }
+      updateTutorial();
     };
 
     buttons.forEach((button) => {
@@ -2796,9 +2699,9 @@
   function toggleDevMode() {
     devMode = !devMode;
     updateDevUi();
+    updateSettingsButtons();
     if (!devMode) {
       clickCheckEnabled = false;
-      el.clickCheck.textContent = "Click Check: Off";
     }
   }
 
@@ -2811,6 +2714,7 @@
         session: state.session,
         sessionHistory: state.sessionHistory,
         log: state.log,
+        ui: state.ui,
       },
       null,
       2
@@ -2822,7 +2726,7 @@
     if (testMode) {
       return;
     }
-    const ok = window.confirm("Import save data? This will replace current progress.");
+    const ok = window.confirm(t("ui.confirmImport"));
     if (!ok) {
       return;
     }
@@ -2832,15 +2736,14 @@
       saveGame();
       updateUi();
     } catch (error) {
-      addLog("Import failed: invalid JSON.");
+      addLog(t("log.importFail"));
     }
   }
-
 
   function copySaveText() {
     el.saveText.select();
     document.execCommand("copy");
-    addLog("Save data copied.");
+    addLog(t("log.saveCopied"));
   }
 
   function resetWeakPoint() {
@@ -2878,6 +2781,74 @@
     handleClick(true);
   }
 
+  function devNote(messageKey, params = {}) {
+    if (devMode) {
+      addLog(t(messageKey, params));
+    }
+  }
+
+  function onGlobalClick(event) {
+    const button = event.target.closest("button[data-action], [role='button'][data-action]");
+    if (!button) {
+      return;
+    }
+    if (button.disabled) {
+      devNote("log.actionBlocked", { action: button.dataset.action || "-" });
+      return;
+    }
+    if (clickCheckEnabled) {
+      const rect = button.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const top = document.elementFromPoint(x, y);
+      if (!top || (top !== button && !button.contains(top))) {
+        const blocker = top ? `${top.tagName}.${top.className || "no-class"}` : "unknown";
+        addLog(t("log.clickBlocked", { target: blocker }));
+      }
+    }
+    try {
+      const action = button.dataset.action;
+      if (action === "equip-item") {
+        equipItem(button.dataset.itemId);
+      } else if (action === "unequip-weapon") {
+        unequipWeapon();
+      } else if (action === "unequip-relic") {
+        unequipRelic();
+      } else if (action === "unequip-rune") {
+        removeRune();
+      } else if (action === "buy-rune") {
+        buyRune(button.dataset.runeOfferId);
+      } else if (action === "refresh-rune-shop") {
+        refreshRuneShop(false);
+      } else if (action === "socket-rune") {
+        socketRune(button.dataset.runeId);
+      } else if (action === "claim-quest") {
+        claimQuest(button.dataset.questId);
+      } else if (action === "reroll-quest") {
+        rerollQuests();
+      } else if (action === "set-lang") {
+        setLang(button.dataset.lang);
+      } else if (action === "set-numfmt") {
+        setNumFormat(button.dataset.value);
+      } else if (action === "set-reducedfx") {
+        setReducedFx(button.dataset.value === "on");
+      } else if (action === "toggle-compact") {
+        setCompactMode(!state.ui.compact);
+      } else if (action === "toggle-dev") {
+        toggleDevMode();
+      } else if (action === "tutorial-next") {
+        state.ui.tutorialStep += 1;
+        updateTutorial();
+      } else if (action === "tutorial-skip") {
+        state.ui.tutorialDone = true;
+        updateTutorial();
+      }
+    } catch (error) {
+      console.error(error);
+      addLog(t("log.actionError"));
+    }
+  }
+
   function runUiTests() {
     testMode = true;
     const snapshot = JSON.parse(JSON.stringify(state));
@@ -2908,6 +2879,9 @@
       state.run.weeklyQuest.completed = true;
     }
 
+    dirty.inventory = true;
+    dirty.runes = true;
+    dirty.quests = true;
     updateUi();
 
     const checks = [
@@ -2917,6 +2891,7 @@
       "[data-test='tab-runes']",
       "[data-test='tab-achievements']",
       "[data-test='tab-collections']",
+      "[data-test='tab-settings']",
       "[data-test='tab-log']",
       "[data-test='buy-click']",
       "[data-test='buy-auto']",
@@ -2934,35 +2909,27 @@
     ];
 
     const results = [];
-    const overlayCheck = (element, label) => {
-      const rect = element.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      const top = document.elementFromPoint(x, y);
-      if (!top || (top !== element && !element.contains(top))) {
-        results.push(`FAIL: Overlay blocks ${label}`);
-        return false;
-      }
-      return true;
-    };
+    const passLabel = t("ui.testsPass");
+    const failLabel = t("ui.testsFail");
+    const missingLabel = t("ui.testsMissing");
+    const disabledLabel = t("ui.testsDisabled");
+    const errorLabel = t("ui.testsError");
+
     checks.forEach((selector) => {
       const element = document.querySelector(selector);
       if (!element) {
-        results.push(`FAIL: Missing ${selector}`);
+        results.push(`${failLabel}: ${missingLabel} ${selector}`);
         return;
       }
       if (element.disabled) {
-        results.push(`FAIL: Disabled ${selector}`);
+        results.push(`${failLabel}: ${disabledLabel} ${selector}`);
         return;
       }
       try {
-        if (selector === "[data-test='buy-click']") {
-          overlayCheck(element, "buy-click");
-        }
         element.click();
-        results.push(`PASS: ${selector}`);
+        results.push(`${passLabel}: ${selector}`);
       } catch (error) {
-        results.push(`FAIL: Error ${selector}`);
+        results.push(`${failLabel}: ${errorLabel} ${selector}`);
       }
     });
 
@@ -2976,27 +2943,30 @@
     dynamicChecks.forEach((check) => {
       const element = document.querySelector(check.selector);
       if (!element) {
-        results.push(`FAIL: Missing ${check.label}`);
+        results.push(`${failLabel}: ${missingLabel} ${check.label}`);
         return;
       }
       if (element.disabled) {
-        results.push(`FAIL: Disabled ${check.label}`);
+        results.push(`${failLabel}: ${disabledLabel} ${check.label}`);
         return;
       }
       try {
         element.click();
-        results.push(`PASS: ${check.label}`);
+        results.push(`${passLabel}: ${check.label}`);
       } catch (error) {
-        results.push(`FAIL: Error ${check.label}`);
+        results.push(`${failLabel}: ${errorLabel} ${check.label}`);
       }
     });
 
-    const passCount = results.filter((line) => line.startsWith("PASS")).length;
-    const failCount = results.filter((line) => line.startsWith("FAIL")).length;
-    el.testResults.textContent = `UI Tests: ${passCount} passed, ${failCount} failed\n${results.join("\n")}`;
+    const passCount = results.filter((line) => line.startsWith(passLabel)).length;
+    const failCount = results.filter((line) => line.startsWith(failLabel)).length;
+    el.testResults.textContent = `${t("ui.testsTitle")}: ${passCount} ${t("ui.testsPassed")}, ${failCount} ${t("ui.testsFailed")}\n${results.join("\n")}`;
 
     state = snapshot;
     testMode = false;
+    dirty.inventory = true;
+    dirty.runes = true;
+    dirty.quests = true;
     updateUi();
   }
 
@@ -3020,8 +2990,9 @@
   function init() {
     loadState();
     initTabs();
-    initCompactMode();
     initAchievementFilters();
+    setCompactMode(state.ui.compact);
+    setReducedFx(state.ui.reducedFx);
     applyOfflineProgress();
     updateUi();
 
@@ -3039,12 +3010,7 @@
       }
     });
     el.prestige.addEventListener("click", prestige);
-    el.compactToggle.addEventListener("click", () => {
-      const enabled = document.body.classList.contains("compact");
-      setCompactMode(!enabled);
-    });
     el.sessionReport.addEventListener("click", showSessionReport);
-    el.devToggle.addEventListener("click", toggleDevMode);
     el.titleSelect.addEventListener("change", (event) => {
       state.meta.equippedTitle = event.target.value;
       updateUi();
@@ -3091,7 +3057,7 @@
     });
     el.clickCheck.addEventListener("click", () => {
       clickCheckEnabled = !clickCheckEnabled;
-      el.clickCheck.textContent = `Click Check: ${clickCheckEnabled ? "On" : "Off"}`;
+      updateSettingsButtons();
     });
     el.saveCopy.addEventListener("click", copySaveText);
     el.saveApply.addEventListener("click", applySaveImport);
@@ -3106,14 +3072,7 @@
       el.offlineModal.classList.remove("active");
     });
 
-    window.addEventListener("keydown", (event) => {
-      if (event.key === "`") {
-        toggleDevMode();
-      }
-    });
-
     document.addEventListener("click", onGlobalClick, true);
-
     startIntervals();
   }
 
