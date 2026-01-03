@@ -222,6 +222,7 @@ body {
     #2b241e;
   border: 4px solid #1a1410;
   image-rendering: pixelated;
+  overflow: hidden;
 }
 
 .monster-area.combo-glow {
@@ -418,6 +419,7 @@ body {
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  height: 100%;
 }
 
 .tab-panel.is-active {
@@ -507,10 +509,39 @@ body {
   color: var(--muted);
 }
 
+.equip-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 6px;
+}
+
 .scroll-panel {
   overflow-y: auto;
   min-height: 0;
   padding-right: 4px;
+}
+
+.scrollbox {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 2px solid #2a2118;
+  padding: 4px;
+}
+
+.scrollbox::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbox::-webkit-scrollbar-thumb {
+  background: #3b3025;
+  border: 2px solid #1f1711;
+}
+
+.scrollbox::-webkit-scrollbar-track {
+  background: #2b241e;
 }
 
 #upgrades-scroll,
@@ -591,6 +622,40 @@ body {
   color: var(--muted);
 }
 
+.rune-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.rune-card {
+  border: 3px solid #4b3d2e;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 9px;
+}
+
+.rune-card .name {
+  font-size: 10px;
+}
+
+.rune-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.rune-badge {
+  border: 2px solid #c7a64a;
+  padding: 2px 6px;
+  font-size: 8px;
+  color: #f0d9a6;
+  text-transform: uppercase;
+}
+
 .rarity-common {
   color: var(--common);
 }
@@ -611,9 +676,33 @@ body {
   align-items: center;
 }
 
-.quest-section {
+.quest-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quest-fixed {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quest-fixed-card {
   display: grid;
   gap: 6px;
+  min-height: 0;
+}
+
+.quest-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.quest-list-section {
+  flex: 1;
 }
 
 .quest-subtitle {
@@ -638,8 +727,38 @@ body {
   color: var(--accent);
 }
 
+.quest .quest-desc {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .quest .progress {
   color: var(--muted);
+}
+
+.quest-bar {
+  height: 6px;
+  background: #2a2118;
+  border: 2px solid #1f1711;
+  position: relative;
+}
+
+.quest-bar-fill {
+  height: 100%;
+  background: #c7a64a;
+}
+
+.quest-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.quest-footer .small {
+  min-width: 80px;
 }
 
 .achievement-filters {
@@ -826,6 +945,10 @@ body {
   .tabs {
     grid-template-columns: repeat(4, 1fr);
     row-gap: 6px;
+  }
+
+  .quest-fixed {
+    grid-template-columns: 1fr;
   }
 
   .stats-row {

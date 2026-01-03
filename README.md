@@ -1,10 +1,16 @@
-# Pixel Mercenary Clicker (v0.4)
+# Pixel Mercenary Clicker (v0.44)
 
 A small, local-only medieval fantasy clicker with a pixel-art vibe. Click monsters to earn gold, collect gear and runes, complete quests, and prestige for Honor.
 
 ## Run
 
 Open `index.html` in any modern browser. No build step or dependencies.
+
+## v0.44 UI Polish
+
+- Runes and Quests tabs now use internal scroll sections to avoid page overflow.
+- Quest layout is compact with progress bars and fixed weekly/chain blocks.
+- Button reliability preserved with global delegation.
 
 ## v0.4 Features
 

@@ -536,14 +536,17 @@
     equippedRuneStat: document.getElementById("equipped-rune-stat"),
     unequipRune: document.getElementById("unequip-rune"),
     inventoryList: document.getElementById("inventory-list"),
+    inventoryPanel: document.getElementById("inventory-panel"),
     runeShopList: document.getElementById("rune-shop-list"),
     runeRefresh: document.getElementById("rune-refresh"),
     runeInventoryList: document.getElementById("rune-inventory-list"),
+    runesPanel: document.getElementById("runes-panel"),
     questList: document.getElementById("quest-list"),
     weeklyQuest: document.getElementById("weekly-quest"),
     weeklyReset: document.getElementById("weekly-reset"),
     chainQuest: document.getElementById("chain-quest"),
     reroll: document.getElementById("reroll"),
+    questsPanel: document.getElementById("quests-panel"),
     achievementList: document.getElementById("achievement-list"),
     achievementFilters: document.querySelector(".achievement-filters"),
     titleSelect: document.getElementById("title-select"),
@@ -560,6 +563,7 @@
     importSave: document.getElementById("import-save"),
     runTests: document.getElementById("run-tests"),
     testResults: document.getElementById("test-results"),
+    clickCheck: document.getElementById("click-check"),
     save: document.getElementById("save"),
     reset: document.getElementById("reset"),
     offlineModal: document.getElementById("offline-modal"),
@@ -671,6 +675,14 @@
   let autoCarry = 0;
   let devMode = false;
   let testMode = false;
+  let clickCheckEnabled = false;
+  const dirty = {
+    inventory: true,
+    runes: true,
+    quests: true,
+    achievements: true,
+    collections: true,
+  };
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -1050,6 +1062,7 @@
       card.appendChild(status);
       el.collectionList.appendChild(card);
     });
+    dirty.collections = false;
   }
 
   function updateQuests(eventType, amount) {
@@ -1070,6 +1083,7 @@
       if (quest.progress >= quest.target && !quest.completed) {
         quest.completed = true;
         addLog(`Quest complete: ${quest.title}`);
+        dirty.quests = true;
       }
     });
 
@@ -1077,7 +1091,7 @@
     updateChainProgress(eventType, amount);
 
     if (updated) {
-      updateQuestUi();
+      dirty.quests = true;
     }
   }
 
@@ -1363,7 +1377,8 @@
         (item.slot === "relic" && item.id === state.run.equippedRelicId);
       button.textContent = isEquipped ? "Equipped" : "Equip";
       button.disabled = isEquipped;
-      button.dataset.equipId = item.id;
+      button.dataset.action = "equip-item";
+      button.dataset.itemId = item.id;
       button.dataset.test = "equip-item";
 
       wrap.appendChild(name);
@@ -1371,69 +1386,102 @@
       wrap.appendChild(button);
       el.inventoryList.appendChild(wrap);
     });
+    dirty.inventory = false;
   }
 
   function updateRuneUi() {
     el.runeShopList.innerHTML = "";
     state.run.runeShop.forEach((rune) => {
       const wrap = document.createElement("div");
-      wrap.className = "rune-item";
+      wrap.className = "rune-card";
 
       const name = document.createElement("div");
       name.className = `name rarity-${rune.rarity.toLowerCase()}`;
-      name.textContent = `${rune.name} (${rune.rarity})`;
+      name.textContent = `${rune.name}`;
 
       const stat = document.createElement("div");
       stat.className = "stat";
       stat.textContent = describeRuneStat(rune);
 
-      const cost = document.createElement("div");
-      cost.className = "stat";
-      cost.textContent = `Cost: ${formatNumber(rune.cost)} gold`;
+      const row = document.createElement("div");
+      row.className = "rune-row";
 
       const button = document.createElement("button");
       button.className = "small";
       button.textContent = "Buy";
       button.disabled = state.run.gold < rune.cost || state.run.runes.length >= RUNE_MAX;
-      button.dataset.buyRuneId = rune.id;
+      button.dataset.action = "buy-rune";
+      button.dataset.runeOfferId = rune.id;
       button.dataset.test = "rune-buy";
+
+      const cost = document.createElement("div");
+      cost.className = "stat";
+      cost.textContent = `${formatNumber(rune.cost)}g`;
+
+      row.appendChild(cost);
+      row.appendChild(button);
 
       wrap.appendChild(name);
       wrap.appendChild(stat);
-      wrap.appendChild(cost);
-      wrap.appendChild(button);
+      wrap.appendChild(row);
       el.runeShopList.appendChild(wrap);
     });
 
     el.runeInventoryList.innerHTML = "";
-    state.run.runes.forEach((rune) => {
+    const socketedId = state.run.equippedRuneId;
+    const sortedRunes = [...state.run.runes].sort((a, b) => {
+      if (a.id === socketedId) {
+        return -1;
+      }
+      if (b.id === socketedId) {
+        return 1;
+      }
+      return 0;
+    });
+    sortedRunes.forEach((rune) => {
       const wrap = document.createElement("div");
-      wrap.className = "rune-item";
+      wrap.className = "rune-card";
 
       const name = document.createElement("div");
       name.className = `name rarity-${rune.rarity.toLowerCase()}`;
-      name.textContent = `${rune.name} (${rune.rarity})`;
+      name.textContent = rune.name;
+
+      const badge = document.createElement("div");
+      if (rune.id === socketedId) {
+        badge.className = "rune-badge";
+        badge.textContent = "Socketed";
+      }
 
       const stat = document.createElement("div");
       stat.className = "stat";
       stat.textContent = describeRuneStat(rune);
 
+      const row = document.createElement("div");
+      row.className = "rune-row";
+
       const button = document.createElement("button");
       button.className = "small";
       button.textContent = rune.id === state.run.equippedRuneId ? "Socketed" : "Socket";
       button.disabled = rune.id === state.run.equippedRuneId || !getEquippedRelic();
-      button.dataset.socketRuneId = rune.id;
+      button.dataset.action = "socket-rune";
+      button.dataset.runeId = rune.id;
       button.dataset.test = "rune-socket";
 
       wrap.appendChild(name);
+      if (badge.textContent) {
+        wrap.appendChild(badge);
+      }
       wrap.appendChild(stat);
-      wrap.appendChild(button);
+      row.appendChild(document.createElement("div"));
+      row.appendChild(button);
+      wrap.appendChild(row);
       el.runeInventoryList.appendChild(wrap);
     });
 
     const refreshCost = state.run.freeRuneRefreshUsed ? RUNE_REFRESH_COST : 0;
     el.runeRefresh.textContent = refreshCost === 0 ? "Refresh (Free)" : `Refresh (${refreshCost}g)`;
     el.runeRefresh.disabled = state.run.freeRuneRefreshUsed && state.run.gold < refreshCost;
+    dirty.runes = false;
   }
 
   function renderQuestCard(quest) {
@@ -1445,21 +1493,34 @@
     title.textContent = quest.title;
 
     const desc = document.createElement("div");
+    desc.className = "quest-desc";
     desc.textContent = quest.description;
 
     const progress = document.createElement("div");
     progress.className = "progress";
     progress.textContent = `${formatNumber(quest.progress)} / ${formatNumber(quest.target)}`;
 
+    const bar = document.createElement("div");
+    bar.className = "quest-bar";
+    const fill = document.createElement("div");
+    fill.className = "quest-bar-fill";
+    const pct = quest.target > 0 ? Math.min(100, (quest.progress / quest.target) * 100) : 0;
+    fill.style.width = `${pct}%`;
+    bar.appendChild(fill);
+
     const reward = document.createElement("div");
     const rewardLabel = quest.rewardType === "honor" ? "Honor" : quest.rewardType === "rune" ? "Rune" : "Gold";
     reward.textContent = `Reward: ${formatNumber(quest.rewardAmount)} ${rewardLabel}`;
+
+    const footer = document.createElement("div");
+    footer.className = "quest-footer";
 
     const button = document.createElement("button");
     button.className = "small";
     if (quest.completed) {
       button.textContent = "Claim";
-      button.dataset.claimId = quest.id;
+      button.dataset.action = "claim-quest";
+      button.dataset.questId = quest.id;
       button.dataset.test = "quest-claim";
     } else {
       button.textContent = "In Progress";
@@ -1468,9 +1529,11 @@
 
     card.appendChild(title);
     card.appendChild(desc);
+    card.appendChild(bar);
     card.appendChild(progress);
-    card.appendChild(reward);
-    card.appendChild(button);
+    footer.appendChild(reward);
+    footer.appendChild(button);
+    card.appendChild(footer);
     return card;
   }
 
@@ -1493,7 +1556,18 @@
       title.className = "title";
       title.textContent = `${state.run.chainQuest.title} (Step ${state.run.chainQuest.stepIndex + 1}/3)`;
       const desc = document.createElement("div");
+      desc.className = "quest-desc";
       desc.textContent = state.run.chainQuest.description;
+      const bar = document.createElement("div");
+      bar.className = "quest-bar";
+      const fill = document.createElement("div");
+      fill.className = "quest-bar-fill";
+      const pct =
+        state.run.chainQuest.target > 0
+          ? Math.min(100, (state.run.chainQuest.progress / state.run.chainQuest.target) * 100)
+          : 0;
+      fill.style.width = `${pct}%`;
+      bar.appendChild(fill);
       const progress = document.createElement("div");
       progress.className = "progress";
       progress.textContent = `${formatNumber(state.run.chainQuest.progress)} / ${formatNumber(
@@ -1501,9 +1575,11 @@
       )}`;
       card.appendChild(title);
       card.appendChild(desc);
+      card.appendChild(bar);
       card.appendChild(progress);
       el.chainQuest.appendChild(card);
     }
+    dirty.quests = false;
   }
 
   function updateWeeklyResetUi() {
@@ -1549,6 +1625,7 @@
     });
 
     updateTitleSelect();
+    dirty.achievements = false;
   }
 
   function updateTitleSelect() {
@@ -1566,6 +1643,7 @@
   }
 
   function checkAchievements() {
+    let unlockedAny = false;
     ACHIEVEMENTS.forEach((ach) => {
       if (state.meta.achievements[ach.id]) {
         return;
@@ -1576,8 +1654,13 @@
           state.meta.titlesUnlocked.push(ach.titleReward);
         }
         addLog(`Achievement unlocked: ${ach.title}`);
+        unlockedAny = true;
       }
     });
+    if (unlockedAny) {
+      dirty.achievements = true;
+    }
+    return unlockedAny;
   }
 
   function updateDevUi() {
@@ -1600,6 +1683,58 @@
       `Monster Type: ${state.run.monsterTypeId}`,
       `Boss: ${state.run.isBoss} | Chapter: ${state.run.isChapterBoss}`,
     ].join("\n");
+  }
+
+  function devNote(message) {
+    if (devMode) {
+      addLog(message);
+    }
+  }
+
+  function onGlobalClick(event) {
+    const button = event.target.closest("button[data-action], [role='button'][data-action]");
+    if (!button) {
+      return;
+    }
+    if (button.disabled) {
+      devNote(`Action blocked: ${button.dataset.action}`);
+      return;
+    }
+    if (clickCheckEnabled) {
+      const rect = button.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const top = document.elementFromPoint(x, y);
+      if (!top || (top !== button && !button.contains(top))) {
+        const blocker = top ? `${top.tagName}.${top.className || "no-class"}` : "unknown";
+        addLog(`CLICK BLOCKED by ${blocker}`);
+      }
+    }
+    try {
+      const action = button.dataset.action;
+      if (action === "equip-item") {
+        equipItem(button.dataset.itemId);
+      } else if (action === "unequip-weapon") {
+        unequipWeapon();
+      } else if (action === "unequip-relic") {
+        unequipRelic();
+      } else if (action === "unequip-rune") {
+        removeRune();
+      } else if (action === "buy-rune") {
+        buyRune(button.dataset.runeOfferId);
+      } else if (action === "refresh-rune-shop") {
+        refreshRuneShop(false);
+      } else if (action === "socket-rune") {
+        socketRune(button.dataset.runeId);
+      } else if (action === "claim-quest") {
+        claimQuest(button.dataset.questId);
+      } else if (action === "reroll-quest") {
+        rerollQuests();
+      }
+    } catch (error) {
+      console.error(error);
+      addLog("Action error. Check console.");
+    }
   }
 
   function updateUi() {
@@ -1644,16 +1779,26 @@
     updateComboUi();
     updateSkillUi();
     updatePrestigeUi();
-    updateInventoryUi();
-    updateRuneUi();
-    updateQuestUi();
     updateWeeklyResetUi();
-    updateAchievementsUi();
-    updateCollectionsUi();
     updateEventUi();
     updateLogUi();
     updateDevUi();
-    checkAchievements();
+    const newAch = checkAchievements();
+    if (dirty.inventory) {
+      updateInventoryUi();
+    }
+    if (dirty.runes) {
+      updateRuneUi();
+    }
+    if (dirty.quests) {
+      updateQuestUi();
+    }
+    if (dirty.collections) {
+      updateCollectionsUi();
+    }
+    if (dirty.achievements || newAch) {
+      updateAchievementsUi();
+    }
   }
 
   function buyUpgrade(type) {
@@ -1734,6 +1879,7 @@
     }
 
     state.meta.collections[item.setId] = true;
+    dirty.collections = true;
     if (Object.values(state.meta.collections).filter(Boolean).length >= 5) {
       if (!state.meta.titlesUnlocked.includes("Collector")) {
         state.meta.titlesUnlocked.push("Collector");
@@ -1828,10 +1974,12 @@
 
     if (item.slot === "weapon") {
       state.run.equippedWeaponId = item.id;
+      addLog(`Equipped Weapon: ${item.name}.`);
     } else {
       state.run.equippedRelicId = item.id;
+      addLog(`Equipped Relic: ${item.name}.`);
     }
-    addLog(`Equipped ${item.name}.`);
+    dirty.inventory = true;
     updateUi();
   }
 
@@ -1841,6 +1989,7 @@
     }
     state.run.equippedWeaponId = null;
     addLog("Weapon unequipped.");
+    dirty.inventory = true;
     updateUi();
   }
 
@@ -1851,6 +2000,7 @@
     state.run.equippedRelicId = null;
     state.run.equippedRuneId = null;
     addLog("Relic unequipped.");
+    dirty.inventory = true;
     updateUi();
   }
 
@@ -1896,6 +2046,7 @@
 
     state.run.runeShop = [generateRune(), generateRune(), generateRune(), generateRune()];
     addLog("Rune shop refreshed.");
+    dirty.runes = true;
     updateUi();
   }
 
@@ -1914,25 +2065,32 @@
     return true;
   }
 
-  function buyRune(runeId) {
+  function buyRune(runeOfferId) {
     if (testMode) {
       return;
     }
-    const runeIndex = state.run.runeShop.findIndex((r) => r.id === runeId);
+    const runeIndex = state.run.runeShop.findIndex((r) => r.id === runeOfferId);
     if (runeIndex === -1) {
       return;
     }
 
     const rune = state.run.runeShop[runeIndex];
+    if (!Number.isFinite(rune.cost)) {
+      return;
+    }
     if (state.run.gold < rune.cost || state.run.runes.length >= RUNE_MAX) {
+      if (state.run.gold < rune.cost) {
+        addLog("Not enough gold.");
+      }
       return;
     }
 
     state.run.gold -= rune.cost;
     const purchased = addRuneToInventory({ ...rune, cost: undefined });
     if (purchased) {
-      addLog(`Purchased rune: ${rune.name}.`);
+      addLog(`Bought Rune: ${rune.name}.`);
       state.run.runeShop.splice(runeIndex, 1, generateRune());
+      dirty.runes = true;
       updateUi();
     }
   }
@@ -1948,6 +2106,7 @@
 
     state.run.equippedRuneId = rune.id;
     addLog(`Socketed rune: ${rune.name}.`);
+    dirty.runes = true;
     updateUi();
   }
 
@@ -1960,6 +2119,7 @@
     if (rune) {
       addLog(`Rune removed: ${rune.name}.`);
     }
+    dirty.runes = true;
     updateUi();
   }
 
@@ -2079,6 +2239,7 @@
     if (quest.progress >= quest.target) {
       quest.completed = true;
       addLog(`Weekly quest complete: ${quest.title}`);
+      dirty.quests = true;
     }
   }
 
@@ -2094,6 +2255,7 @@
     }
     if (chain.progress >= chain.target) {
       advanceChain();
+      dirty.quests = true;
     }
   }
 
@@ -2109,6 +2271,7 @@
       }
       handleQuestReward(quest);
       state.run.quests.splice(questIndex, 1, createQuest());
+      dirty.quests = true;
       return;
     }
 
@@ -2118,29 +2281,35 @@
       }
       handleQuestReward(state.run.weeklyQuest);
       state.run.weeklyQuest = createWeeklyQuest();
+      dirty.quests = true;
       return;
     }
   }
 
   function handleQuestReward(quest) {
+    let rewardText = "";
     if (quest.rewardType === "honor") {
       state.meta.totalHonor += quest.rewardAmount;
       state.session.honorGained += quest.rewardAmount;
+      rewardText = `+${formatNumber(quest.rewardAmount)} Honor`;
     } else if (quest.rewardType === "rune") {
       const rune = generateRune();
       addRuneToInventory(rune);
       addLog(`Quest reward: ${rune.name}.`);
+      rewardText = "+Rune";
     } else if (quest.rewardType === "title") {
       if (!state.meta.titlesUnlocked.includes(quest.rewardAmount)) {
         state.meta.titlesUnlocked.push(quest.rewardAmount);
       }
+      rewardText = `Title: ${quest.rewardAmount}`;
     } else {
       state.run.gold += quest.rewardAmount;
+      rewardText = `+${formatNumber(quest.rewardAmount)} Gold`;
     }
 
     state.meta.lifetimeQuestClaims += 1;
     state.session.questsCompleted += 1;
-    addLog(`Quest claimed: ${quest.title}.`);
+    addLog(`Claimed Quest: ${quest.title} (${rewardText}).`);
     updateUi();
   }
 
@@ -2161,6 +2330,7 @@
 
     state.run.quests = [createQuest(), createQuest(), createQuest()];
     addLog("Quests rerolled.");
+    dirty.quests = true;
     updateUi();
   }
 
@@ -2252,6 +2422,11 @@
     ensureWeeklyQuest();
     ensureChainQuest();
     refreshRuneShop(true);
+    dirty.inventory = true;
+    dirty.runes = true;
+    dirty.quests = true;
+    dirty.collections = true;
+    dirty.achievements = true;
   }
 
   function applyOfflineProgress() {
@@ -2378,15 +2553,15 @@
     state.run.zone = Math.max(1, state.run.zone || 1);
     state.run.highestZone = Math.max(state.run.zone, state.run.highestZone || state.run.zone);
 
-    if (!Array.isArray(state.run.inventory)) {
-      state.run.inventory = [];
-    }
-    state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
-    state.run.inventory.forEach((item) => {
-      if (!item.slot) {
-        item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
+      if (!Array.isArray(state.run.inventory)) {
+        state.run.inventory = [];
       }
-    });
+      state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
+      state.run.inventory.forEach((item) => {
+        if (!item.slot) {
+          item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
+        }
+      });
     if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
       state.run.equippedRelicId = null;
     }
@@ -2415,6 +2590,11 @@
     ensureChainQuest();
     spawnMonster(state.run.isBoss, state.run.monsterTypeId);
     updateHpUi();
+    dirty.inventory = true;
+    dirty.runes = true;
+    dirty.quests = true;
+    dirty.collections = true;
+    dirty.achievements = true;
   }
 
   function loadState() {
@@ -2538,6 +2718,11 @@
       ensureQuests();
       ensureWeeklyQuest();
       ensureChainQuest();
+      dirty.inventory = true;
+      dirty.runes = true;
+      dirty.quests = true;
+      dirty.collections = true;
+      dirty.achievements = true;
     } catch (error) {
       spawnMonster(false);
       ensureQuests();
@@ -2611,6 +2796,10 @@
   function toggleDevMode() {
     devMode = !devMode;
     updateDevUi();
+    if (!devMode) {
+      clickCheckEnabled = false;
+      el.clickCheck.textContent = "Click Check: Off";
+    }
   }
 
   function openSaveModal() {
@@ -2646,6 +2835,7 @@
       addLog("Import failed: invalid JSON.");
     }
   }
+
 
   function copySaveText() {
     el.saveText.select();
@@ -2744,6 +2934,17 @@
     ];
 
     const results = [];
+    const overlayCheck = (element, label) => {
+      const rect = element.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      const top = document.elementFromPoint(x, y);
+      if (!top || (top !== element && !element.contains(top))) {
+        results.push(`FAIL: Overlay blocks ${label}`);
+        return false;
+      }
+      return true;
+    };
     checks.forEach((selector) => {
       const element = document.querySelector(selector);
       if (!element) {
@@ -2755,6 +2956,9 @@
         return;
       }
       try {
+        if (selector === "[data-test='buy-click']") {
+          overlayCheck(element, "buy-click");
+        }
         element.click();
         results.push(`PASS: ${selector}`);
       } catch (error) {
@@ -2841,41 +3045,6 @@
     });
     el.sessionReport.addEventListener("click", showSessionReport);
     el.devToggle.addEventListener("click", toggleDevMode);
-    el.unequipWeapon.addEventListener("click", unequipWeapon);
-    el.unequipRelic.addEventListener("click", unequipRelic);
-    el.unequipRune.addEventListener("click", removeRune);
-    el.inventoryList.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target && target.dataset.equipId) {
-        equipItem(target.dataset.equipId);
-      }
-    });
-    el.runeShopList.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target && target.dataset.buyRuneId) {
-        buyRune(target.dataset.buyRuneId);
-      }
-    });
-    el.runeInventoryList.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target && target.dataset.socketRuneId) {
-        socketRune(target.dataset.socketRuneId);
-      }
-    });
-    el.runeRefresh.addEventListener("click", () => refreshRuneShop(false));
-    el.questList.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target && target.dataset.claimId) {
-        claimQuest(target.dataset.claimId);
-      }
-    });
-    el.weeklyQuest.addEventListener("click", (event) => {
-      const target = event.target;
-      if (target && target.dataset.claimId) {
-        claimQuest(target.dataset.claimId);
-      }
-    });
-    el.reroll.addEventListener("click", rerollQuests);
     el.titleSelect.addEventListener("change", (event) => {
       state.meta.equippedTitle = event.target.value;
       updateUi();
@@ -2920,6 +3089,10 @@
       }
       runUiTests();
     });
+    el.clickCheck.addEventListener("click", () => {
+      clickCheckEnabled = !clickCheckEnabled;
+      el.clickCheck.textContent = `Click Check: ${clickCheckEnabled ? "On" : "Off"}`;
+    });
     el.saveCopy.addEventListener("click", copySaveText);
     el.saveApply.addEventListener("click", applySaveImport);
     el.saveClose.addEventListener("click", () => el.saveModal.classList.remove("active"));
@@ -2938,6 +3111,8 @@
         toggleDevMode();
       }
     });
+
+    document.addEventListener("click", onGlobalClick, true);
 
     startIntervals();
   }

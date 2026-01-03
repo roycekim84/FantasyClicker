@@ -133,61 +133,75 @@
               </div>
             </section>
 
-            <section class="panel tab-panel" data-tab-panel="inventory">
+            <section class="panel tab-panel" data-tab-panel="inventory" id="inventory-panel">
               <div class="equip-panel">
                 <h2>Weapon Slot</h2>
                 <div class="equipped" id="equipped-weapon">
                   <div class="equipped-name" id="equipped-weapon-name">None</div>
                   <div class="equipped-stat" id="equipped-weapon-stat">No bonus</div>
-                  <button id="unequip-weapon" class="small" data-test="unequip-weapon">Unequip</button>
+                  <button id="unequip-weapon" class="small" data-action="unequip-weapon" data-test="unequip-weapon">Unequip</button>
                 </div>
                 <h2>Relic Slot</h2>
                 <div class="equipped" id="equipped-relic">
                   <div class="equipped-name" id="equipped-relic-name">None</div>
                   <div class="equipped-stat" id="equipped-relic-stat">No bonus</div>
-                  <button id="unequip-relic" class="small" data-test="unequip-relic">Unequip</button>
+                  <button id="unequip-relic" class="small" data-action="unequip-relic" data-test="unequip-relic">Unequip</button>
                 </div>
                 <div class="rune-slot">
                   <div class="equipped-name" id="equipped-rune-name">Rune: None</div>
                   <div class="equipped-stat" id="equipped-rune-stat">No rune socketed</div>
-                  <button id="unequip-rune" class="small" data-test="unequip-rune">Remove Rune</button>
+                  <button id="unequip-rune" class="small" data-action="unequip-rune" data-test="unequip-rune">Remove Rune</button>
                 </div>
                 <h3>Inventory</h3>
-                <div class="scroll-panel" id="inventory-list"></div>
+                <div class="scrollbox">
+                  <div class="scroll-panel" id="inventory-list"></div>
+                </div>
               </div>
             </section>
 
-            <section class="panel tab-panel runes-panel" data-tab-panel="runes">
-              <div class="rune-shop">
+            <section class="panel tab-panel runes-panel" data-tab-panel="runes" id="runes-panel">
+              <div class="rune-section">
                 <div class="rune-header">
                   <h2>Rune Shop</h2>
-                  <button id="rune-refresh" class="small" data-test="rune-refresh">Refresh</button>
+                  <button id="rune-refresh" class="small" data-action="refresh-rune-shop" data-test="rune-refresh">Refresh</button>
                 </div>
-                <div class="scroll-panel" id="rune-shop-list"></div>
+                <div class="scrollbox">
+                  <div class="scroll-panel" id="rune-shop-list"></div>
+                </div>
               </div>
-              <div class="rune-inventory">
-                <h2>Rune Pouch</h2>
-                <div class="scroll-panel" id="rune-inventory-list"></div>
+              <div class="rune-section">
+                <div class="rune-header">
+                  <h2>Rune Pouch</h2>
+                </div>
+                <div class="scrollbox">
+                  <div class="scroll-panel" id="rune-inventory-list"></div>
+                </div>
               </div>
             </section>
 
-            <section class="panel tab-panel" data-tab-panel="quests">
+            <section class="panel tab-panel" data-tab-panel="quests" id="quests-panel">
               <div class="quest-header">
                 <h2>Quests</h2>
-                <button id="reroll" class="small" data-test="reroll">Reroll</button>
+                <div class="quest-tools">
+                  <div class="quest-reset" id="weekly-reset">Resets in 7d</div>
+                  <button id="reroll" class="small" data-action="reroll-quest" data-test="reroll">Reroll</button>
+                </div>
               </div>
-              <div class="quest-section">
+              <div class="quest-fixed">
+                <div class="quest-fixed-card">
+                  <div class="quest-subtitle">Weekly Quest</div>
+                  <div id="weekly-quest"></div>
+                </div>
+                <div class="quest-fixed-card">
+                  <div class="quest-subtitle">Quest Chain</div>
+                  <div id="chain-quest"></div>
+                </div>
+              </div>
+              <div class="quest-section quest-list-section">
                 <div class="quest-subtitle">Regular Quests</div>
-                <div class="scroll-panel" id="quest-list"></div>
-              </div>
-              <div class="quest-section">
-                <div class="quest-subtitle">Weekly Quest</div>
-                <div id="weekly-quest"></div>
-                <div class="quest-reset" id="weekly-reset">Resets in 7d</div>
-              </div>
-              <div class="quest-section">
-                <div class="quest-subtitle">Quest Chain</div>
-                <div id="chain-quest"></div>
+                <div class="scrollbox">
+                  <div class="scroll-panel" id="quest-list"></div>
+                </div>
               </div>
             </section>
 
@@ -229,6 +243,9 @@
                   <button class="small" id="export-save" data-test="export">Export Save</button>
                   <button class="small" id="import-save" data-test="import">Import Save</button>
                   <button class="small" id="run-tests" data-test="run-tests">Run UI Tests</button>
+                </div>
+                <div class="dev-actions">
+                  <button class="small" id="click-check">Click Check: Off</button>
                 </div>
                 <div class="test-results" id="test-results"></div>
               </div>
