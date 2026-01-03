@@ -19,10 +19,12 @@
           <div class="stat boss" id="boss-indicator">Boss</div>
         </div>
         <div class="header-actions">
-          <button class="small" id="compact-toggle">Compact: Off</button>
-          <button class="small" id="save">Save</button>
-          <button class="small" id="reset">Reset</button>
-          <button class="prestige" id="prestige">Prestige</button>
+          <button class="small" id="compact-toggle" data-test="compact">Compact: Off</button>
+          <button class="small" id="session-report" data-test="session">Session</button>
+          <button class="small" id="dev-toggle" data-test="dev">Dev</button>
+          <button class="small" id="save" data-test="save">Save</button>
+          <button class="small" id="reset" data-test="reset">Reset</button>
+          <button class="prestige" id="prestige" data-test="prestige">Prestige</button>
         </div>
       </header>
 
@@ -40,6 +42,7 @@
             </div>
             <div class="hp-text" id="hp-text">0 / 0</div>
           </div>
+          <div class="combo" id="combo-display">Combo: 0 (+0%)</div>
           <div class="hp-bar">
             <div class="hp-fill" id="hp-fill"></div>
           </div>
@@ -47,10 +50,11 @@
             <span id="event-name">Event</span>
             <span id="event-timer">0s</span>
           </div>
-          <div class="monster-area">
+          <div class="monster-area" id="monster-area">
             <button id="monster" class="monster" aria-label="Monster">
               <div class="sprite"></div>
             </button>
+            <button id="weak-point" class="weak-point" aria-label="Weak Point"></button>
             <div class="floating-layer" id="floating-layer"></div>
           </div>
           <div class="hint">Click the monster to attack</div>
@@ -58,12 +62,13 @@
 
         <section class="controls">
           <div class="tabs" role="tablist">
-            <button class="tab-button is-active" data-tab="shop" role="tab">Shop</button>
-            <button class="tab-button" data-tab="inventory" role="tab">Inventory</button>
-            <button class="tab-button" data-tab="runes" role="tab">Runes</button>
-            <button class="tab-button" data-tab="quests" role="tab">Quests</button>
-            <button class="tab-button" data-tab="achievements" role="tab">Achievements</button>
-            <button class="tab-button" data-tab="log" role="tab">Log</button>
+            <button class="tab-button is-active" data-tab="shop" data-test="tab-shop" role="tab">Shop</button>
+            <button class="tab-button" data-tab="inventory" data-test="tab-inventory" role="tab">Inventory</button>
+            <button class="tab-button" data-tab="runes" data-test="tab-runes" role="tab">Runes</button>
+            <button class="tab-button" data-tab="quests" data-test="tab-quests" role="tab">Quests</button>
+            <button class="tab-button" data-tab="achievements" data-test="tab-achievements" role="tab">Achievements</button>
+            <button class="tab-button" data-tab="collections" data-test="tab-collections" role="tab">Collections</button>
+            <button class="tab-button" data-tab="log" data-test="tab-log" role="tab">Log</button>
           </div>
 
           <div class="tab-panels">
@@ -79,11 +84,11 @@
               <div class="skill-box">
                 <div class="skill-title" id="skill-title">Power Strike</div>
                 <div class="skill-desc" id="skill-desc">Click damage x3 for 4s</div>
-                <button class="skill" id="skill-activate">Activate</button>
+                <button class="skill" id="skill-activate" data-test="skill-activate">Activate</button>
                 <div class="skill-timer" id="skill-timer">Ready</div>
                 <div class="skill-select">
-                  <button class="small" data-skill="power">Power Strike</button>
-                  <button class="small" data-skill="cry">Battle Cry</button>
+                  <button class="small" data-skill="power" data-test="skill-power">Power Strike</button>
+                  <button class="small" data-skill="cry" data-test="skill-cry">Battle Cry</button>
                 </div>
               </div>
               <div class="shop-panel">
@@ -95,7 +100,7 @@
                       <div class="desc">+1 click damage</div>
                       <div class="level">Level: <span id="lvl-click">0</span></div>
                     </div>
-                    <button class="buy" id="buy-click">Buy (<span id="cost-click">0</span>)</button>
+                    <button class="buy" id="buy-click" data-test="buy-click">Buy (<span id="cost-click">0</span>)</button>
                   </div>
 
                   <div class="upgrade" id="upg-auto">
@@ -104,7 +109,7 @@
                       <div class="desc">+1 auto DPS</div>
                       <div class="level">Level: <span id="lvl-auto">0</span></div>
                     </div>
-                    <button class="buy" id="buy-auto">Buy (<span id="cost-auto">0</span>)</button>
+                    <button class="buy" id="buy-auto" data-test="buy-auto">Buy (<span id="cost-auto">0</span>)</button>
                   </div>
 
                   <div class="upgrade" id="upg-crit">
@@ -113,7 +118,7 @@
                       <div class="desc">+2% crit chance (cap 50%)</div>
                       <div class="level">Level: <span id="lvl-crit">0</span></div>
                     </div>
-                    <button class="buy" id="buy-crit">Buy (<span id="cost-crit">0</span>)</button>
+                    <button class="buy" id="buy-crit" data-test="buy-crit">Buy (<span id="cost-crit">0</span>)</button>
                   </div>
 
                   <div class="upgrade" id="upg-multi">
@@ -122,7 +127,7 @@
                       <div class="desc">+0.1 crit multiplier (cap 3.0x)</div>
                       <div class="level">Level: <span id="lvl-multi">0</span></div>
                     </div>
-                    <button class="buy" id="buy-multi">Buy (<span id="cost-multi">0</span>)</button>
+                    <button class="buy" id="buy-multi" data-test="buy-multi">Buy (<span id="cost-multi">0</span>)</button>
                   </div>
                 </div>
               </div>
@@ -130,16 +135,22 @@
 
             <section class="panel tab-panel" data-tab-panel="inventory">
               <div class="equip-panel">
+                <h2>Weapon Slot</h2>
+                <div class="equipped" id="equipped-weapon">
+                  <div class="equipped-name" id="equipped-weapon-name">None</div>
+                  <div class="equipped-stat" id="equipped-weapon-stat">No bonus</div>
+                  <button id="unequip-weapon" class="small" data-test="unequip-weapon">Unequip</button>
+                </div>
                 <h2>Relic Slot</h2>
-                <div class="equipped" id="equipped">
-                  <div class="equipped-name" id="equipped-name">None</div>
-                  <div class="equipped-stat" id="equipped-stat">No bonus</div>
-                  <button id="unequip" class="small">Unequip</button>
+                <div class="equipped" id="equipped-relic">
+                  <div class="equipped-name" id="equipped-relic-name">None</div>
+                  <div class="equipped-stat" id="equipped-relic-stat">No bonus</div>
+                  <button id="unequip-relic" class="small" data-test="unequip-relic">Unequip</button>
                 </div>
                 <div class="rune-slot">
                   <div class="equipped-name" id="equipped-rune-name">Rune: None</div>
                   <div class="equipped-stat" id="equipped-rune-stat">No rune socketed</div>
-                  <button id="unequip-rune" class="small">Remove Rune</button>
+                  <button id="unequip-rune" class="small" data-test="unequip-rune">Remove Rune</button>
                 </div>
                 <h3>Inventory</h3>
                 <div class="scroll-panel" id="inventory-list"></div>
@@ -150,7 +161,7 @@
               <div class="rune-shop">
                 <div class="rune-header">
                   <h2>Rune Shop</h2>
-                  <button id="rune-refresh" class="small">Refresh</button>
+                  <button id="rune-refresh" class="small" data-test="rune-refresh">Refresh</button>
                 </div>
                 <div class="scroll-panel" id="rune-shop-list"></div>
               </div>
@@ -163,9 +174,21 @@
             <section class="panel tab-panel" data-tab-panel="quests">
               <div class="quest-header">
                 <h2>Quests</h2>
-                <button id="reroll" class="small">Reroll</button>
+                <button id="reroll" class="small" data-test="reroll">Reroll</button>
               </div>
-              <div class="scroll-panel" id="quest-list"></div>
+              <div class="quest-section">
+                <div class="quest-subtitle">Regular Quests</div>
+                <div class="scroll-panel" id="quest-list"></div>
+              </div>
+              <div class="quest-section">
+                <div class="quest-subtitle">Weekly Quest</div>
+                <div id="weekly-quest"></div>
+                <div class="quest-reset" id="weekly-reset">Resets in 7d</div>
+              </div>
+              <div class="quest-section">
+                <div class="quest-subtitle">Quest Chain</div>
+                <div id="chain-quest"></div>
+              </div>
             </section>
 
             <section class="panel tab-panel" data-tab-panel="achievements">
@@ -184,9 +207,31 @@
               <div class="scroll-panel" id="achievement-list"></div>
             </section>
 
+            <section class="panel tab-panel" data-tab-panel="collections">
+              <h2>Collections</h2>
+              <div class="collection-summary" id="collection-summary">Sets completed: 0/5</div>
+              <div class="collection-bonus" id="collection-bonus">Gold bonus: +0%</div>
+              <div class="scroll-panel" id="collection-list"></div>
+            </section>
+
             <section class="panel tab-panel" data-tab-panel="log">
               <h2>Log</h2>
               <div class="scroll-panel log-scroll" id="log-list"></div>
+              <div class="dev-panel" id="dev-panel">
+                <h2>Dev Panel</h2>
+                <div class="dev-info" id="dev-info"></div>
+                <div class="dev-actions">
+                  <button class="small" id="dev-gold" data-test="dev-gold">Give +10,000 gold</button>
+                  <button class="small" id="dev-zone" data-test="dev-zone">Advance Zone +1</button>
+                  <button class="small" id="dev-boss" data-test="dev-boss">Spawn Boss</button>
+                </div>
+                <div class="dev-actions">
+                  <button class="small" id="export-save" data-test="export">Export Save</button>
+                  <button class="small" id="import-save" data-test="import">Import Save</button>
+                  <button class="small" id="run-tests" data-test="run-tests">Run UI Tests</button>
+                </div>
+                <div class="test-results" id="test-results"></div>
+              </div>
             </section>
           </div>
         </section>
@@ -198,6 +243,26 @@
         <h2>Welcome Back</h2>
         <p id="offline-text">While you were away...</p>
         <button id="offline-close" class="small">Continue</button>
+      </div>
+    </div>
+
+    <div class="modal" id="session-modal">
+      <div class="modal-content">
+        <h2>Session Report</h2>
+        <div id="session-content"></div>
+        <button id="session-close" class="small">Close</button>
+      </div>
+    </div>
+
+    <div class="modal" id="save-modal">
+      <div class="modal-content">
+        <h2>Export / Import Save</h2>
+        <textarea id="save-text" rows="8"></textarea>
+        <div class="modal-actions">
+          <button id="save-copy" class="small">Copy</button>
+          <button id="save-apply" class="small">Import</button>
+          <button id="save-close" class="small">Close</button>
+        </div>
       </div>
     </div>
 

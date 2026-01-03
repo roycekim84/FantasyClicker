@@ -37,7 +37,7 @@ body {
   height: 100vh;
   display: grid;
   grid-template-rows: var(--header-h) 1fr;
-  max-width: 1220px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 10px 12px 12px;
   gap: var(--panel-gap);
@@ -168,6 +168,16 @@ body {
   margin-top: 4px;
 }
 
+.combo {
+  font-size: 9px;
+  color: #ffd88f;
+}
+
+.combo.active {
+  color: #ffeac2;
+  text-shadow: 0 0 6px rgba(255, 226, 154, 0.5);
+}
+
 .hp-bar {
   height: 16px;
   background: var(--hp-back);
@@ -212,6 +222,10 @@ body {
     #2b241e;
   border: 4px solid #1a1410;
   image-rendering: pixelated;
+}
+
+.monster-area.combo-glow {
+  box-shadow: inset 0 0 14px rgba(255, 226, 154, 0.35);
 }
 
 .region-greenfields .monster-area {
@@ -279,6 +293,22 @@ body {
   box-shadow: 40px 0 0 #2b1f16;
 }
 
+.weak-point {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #ffd88f;
+  background: rgba(255, 216, 143, 0.15);
+  box-shadow: 0 0 10px rgba(255, 216, 143, 0.4);
+  cursor: pointer;
+  display: none;
+  z-index: 3;
+}
+
+.weak-point.active {
+  display: block;
+}
+
 .monster.hit .sprite {
   filter: brightness(1.4);
 }
@@ -328,6 +358,10 @@ body {
   color: #9dd1ff;
 }
 
+.floating-text.weak {
+  color: #ffd88f;
+}
+
 @keyframes float {
   0% {
     opacity: 1;
@@ -354,7 +388,7 @@ body {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 6px;
 }
 
@@ -382,7 +416,7 @@ body {
 .tab-panel {
   display: none;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
 }
 
@@ -393,7 +427,7 @@ body {
 .runes-panel.is-active {
   display: grid;
   grid-template-rows: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .stats {
@@ -479,20 +513,13 @@ body {
   padding-right: 4px;
 }
 
-.rune-shop,
-.rune-inventory {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 0;
-}
-
 #upgrades-scroll,
 #inventory-list,
 #quest-list,
 #achievement-list,
 #rune-shop-list,
 #rune-inventory-list,
+#collection-list,
 .log-scroll {
   flex: 1;
 }
@@ -544,14 +571,9 @@ body {
   font-size: 9px;
 }
 
-.inventory,
-.rune-list {
-  display: grid;
-  gap: 8px;
-}
-
 .item,
-.rune-item {
+.rune-item,
+.collection-card {
   border: 3px solid #4b3d2e;
   padding: 8px;
   display: grid;
@@ -589,6 +611,21 @@ body {
   align-items: center;
 }
 
+.quest-section {
+  display: grid;
+  gap: 6px;
+}
+
+.quest-subtitle {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.quest-reset {
+  font-size: 8px;
+  color: var(--muted);
+}
+
 .quest {
   border: 3px solid #4b3d2e;
   padding: 8px;
@@ -608,12 +645,6 @@ body {
 .achievement-filters {
   display: flex;
   gap: 6px;
-}
-
-.small.is-active {
-  background: var(--accent);
-  border-color: var(--accent-dark);
-  color: #2b210b;
 }
 
 .achievement-card {
@@ -642,6 +673,12 @@ body {
   font-size: 9px;
 }
 
+.collection-summary,
+.collection-bonus {
+  font-size: 9px;
+  color: var(--muted);
+}
+
 .log-scroll {
   display: grid;
   gap: 6px;
@@ -655,6 +692,36 @@ body {
   padding-bottom: 4px;
 }
 
+.dev-panel {
+  display: none;
+  border-top: 3px dashed #4b3d2e;
+  margin-top: 8px;
+  padding-top: 8px;
+  gap: 6px;
+}
+
+.dev-panel.active {
+  display: grid;
+}
+
+.dev-info {
+  font-size: 9px;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+.dev-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.test-results {
+  font-size: 9px;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
 .small {
   background: #3b3025;
   border: 3px solid #1f1711;
@@ -662,6 +729,12 @@ body {
   padding: 6px 8px;
   cursor: pointer;
   font-size: 9px;
+}
+
+.small.is-active {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  color: #2b210b;
 }
 
 .small:disabled {
@@ -689,10 +762,32 @@ body {
   background: var(--panel);
   border: 4px solid var(--panel-edge);
   padding: 16px;
-  width: min(360px, 90vw);
+  width: min(420px, 90vw);
   text-align: center;
   display: grid;
   gap: 10px;
+}
+
+#session-content {
+  white-space: pre-line;
+  text-align: left;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.modal-content textarea {
+  width: 100%;
+  background: #2b241e;
+  border: 3px solid #1f1711;
+  color: var(--text);
+  padding: 8px;
+  font-size: 9px;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
 }
 
 .compact .panel {
@@ -719,7 +814,7 @@ body {
   padding: 4px 0;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
   }
@@ -729,7 +824,7 @@ body {
   }
 
   .tabs {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     row-gap: 6px;
   }
 

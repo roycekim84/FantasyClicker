@@ -19,6 +19,9 @@
   const CRY_DURATION_MS = 6000;
   const OFFLINE_CAP_SECONDS = 6 * 60 * 60;
   const OFFLINE_KILL_CAP = 500;
+  const COMBO_WINDOW_MS = 850;
+  const WEAK_POINT_MIN_MS = 1200;
+  const WEAK_POINT_MAX_MS = 2200;
 
   const MONSTER_TYPES = [
     { id: "grunt", label: "Grunt", hpMult: 1, goldMult: 1, dodge: 0 },
@@ -43,6 +46,7 @@
         "Bramble Rat",
         "Hollow Crow",
       ],
+      setName: "Greenfields Set",
     },
     {
       id: "ashen-ruins",
@@ -60,6 +64,7 @@
         "Scorchling",
         "Burnt Golem",
       ],
+      setName: "Ashen Set",
     },
     {
       id: "crypt-depths",
@@ -77,6 +82,7 @@
         "Dust Lich",
         "Tomb Guard",
       ],
+      setName: "Crypt Set",
     },
     {
       id: "frost-peaks",
@@ -94,6 +100,7 @@
         "Shiver Drake",
         "Hoarfang",
       ],
+      setName: "Frost Set",
     },
     {
       id: "void-gate",
@@ -111,6 +118,7 @@
         "Grim Oracle",
         "Gate Sentinel",
       ],
+      setName: "Void Set",
     },
   ];
 
@@ -208,6 +216,20 @@
       desc: "Earn 50 Honor",
       titleReward: "Noble",
       check: (s) => s.meta.totalHonor >= 50,
+    },
+    {
+      id: "rare_weapon",
+      title: "Arsenal",
+      desc: "Obtain a Rare weapon",
+      titleReward: "Arsenal",
+      check: (s) => s.meta.foundRareWeapon,
+    },
+    {
+      id: "epic_weapon",
+      title: "Master Forge",
+      desc: "Obtain an Epic weapon",
+      titleReward: "Master Forge",
+      check: (s) => s.meta.foundEpicWeapon,
     },
     {
       id: "rare_relic",
@@ -379,6 +401,81 @@
     },
   ];
 
+  const WEEKLY_TEMPLATES = [
+    {
+      id: "weekly_kills",
+      title: "Weekly Hunt",
+      desc: (t) => `Defeat ${t} monsters`,
+      type: "kill",
+      target: () => randInt(300, 500),
+      reward: () => ({ type: "honor", amount: 3 }),
+    },
+    {
+      id: "weekly_boss",
+      title: "Weekly Siege",
+      desc: (t) => `Defeat ${t} bosses`,
+      type: "boss_kill",
+      target: () => randInt(15, 25),
+      reward: () => ({ type: "honor", amount: 3 }),
+    },
+    {
+      id: "weekly_gold",
+      title: "Weekly Fortune",
+      desc: (t) => `Earn ${formatNumber(t)} gold`,
+      type: "gold_earned",
+      target: () => randInt(4000, 6500),
+      reward: () => ({ type: "title", amount: "Weekly Victor" }),
+    },
+  ];
+
+  const CHAIN_TEMPLATES = [
+    {
+      id: "chain_slayer",
+      title: "Slayer Path",
+      steps: [
+        { type: "kill", target: 60, desc: "Defeat 60 monsters" },
+        { type: "boss_kill", target: 5, desc: "Defeat 5 bosses" },
+        { type: "kill", target: 120, desc: "Defeat 120 monsters" },
+      ],
+    },
+    {
+      id: "chain_crit",
+      title: "Critical Path",
+      steps: [
+        { type: "crit", target: 10, desc: "Land 10 critical hits" },
+        { type: "click_damage", target: 800, desc: "Deal 800 click damage" },
+        { type: "crit", target: 20, desc: "Land 20 critical hits" },
+      ],
+    },
+    {
+      id: "chain_gold",
+      title: "Golden Path",
+      steps: [
+        { type: "gold_earned", target: 600, desc: "Earn 600 gold" },
+        { type: "gold_earned", target: 1200, desc: "Earn 1,200 gold" },
+        { type: "gold_earned", target: 2000, desc: "Earn 2,000 gold" },
+      ],
+    },
+    {
+      id: "chain_zone",
+      title: "Frontier Path",
+      steps: [
+        { type: "zone_reach", target: 6, desc: "Reach zone 6" },
+        { type: "zone_reach", target: 8, desc: "Reach zone 8" },
+        { type: "zone_reach", target: 10, desc: "Reach zone 10" },
+      ],
+    },
+    {
+      id: "chain_master",
+      title: "Master Path",
+      steps: [
+        { type: "kill", target: 80, desc: "Defeat 80 monsters" },
+        { type: "click_damage", target: 1000, desc: "Deal 1,000 click damage" },
+        { type: "boss_kill", target: 7, desc: "Defeat 7 bosses" },
+      ],
+    },
+  ];
+
   const el = {
     gold: document.getElementById("gold"),
     honor: document.getElementById("honor"),
@@ -390,10 +487,13 @@
     regionName: document.getElementById("region-name"),
     regionSub: document.getElementById("region-sub"),
     chapterNext: document.getElementById("chapter-next"),
+    comboDisplay: document.getElementById("combo-display"),
     eventBanner: document.getElementById("event-banner"),
     eventName: document.getElementById("event-name"),
     eventTimer: document.getElementById("event-timer"),
     monster: document.getElementById("monster"),
+    monsterArea: document.getElementById("monster-area"),
+    weakPoint: document.getElementById("weak-point"),
     monsterName: document.getElementById("monster-name"),
     monsterType: document.getElementById("monster-type"),
     hpText: document.getElementById("hp-text"),
@@ -424,9 +524,14 @@
     skillSelect: document.querySelector(".skill-select"),
     prestige: document.getElementById("prestige"),
     compactToggle: document.getElementById("compact-toggle"),
-    equippedName: document.getElementById("equipped-name"),
-    equippedStat: document.getElementById("equipped-stat"),
-    unequip: document.getElementById("unequip"),
+    sessionReport: document.getElementById("session-report"),
+    devToggle: document.getElementById("dev-toggle"),
+    equippedWeaponName: document.getElementById("equipped-weapon-name"),
+    equippedWeaponStat: document.getElementById("equipped-weapon-stat"),
+    unequipWeapon: document.getElementById("unequip-weapon"),
+    equippedRelicName: document.getElementById("equipped-relic-name"),
+    equippedRelicStat: document.getElementById("equipped-relic-stat"),
+    unequipRelic: document.getElementById("unequip-relic"),
     equippedRuneName: document.getElementById("equipped-rune-name"),
     equippedRuneStat: document.getElementById("equipped-rune-stat"),
     unequipRune: document.getElementById("unequip-rune"),
@@ -435,16 +540,39 @@
     runeRefresh: document.getElementById("rune-refresh"),
     runeInventoryList: document.getElementById("rune-inventory-list"),
     questList: document.getElementById("quest-list"),
+    weeklyQuest: document.getElementById("weekly-quest"),
+    weeklyReset: document.getElementById("weekly-reset"),
+    chainQuest: document.getElementById("chain-quest"),
     reroll: document.getElementById("reroll"),
     achievementList: document.getElementById("achievement-list"),
     achievementFilters: document.querySelector(".achievement-filters"),
     titleSelect: document.getElementById("title-select"),
+    collectionSummary: document.getElementById("collection-summary"),
+    collectionBonus: document.getElementById("collection-bonus"),
+    collectionList: document.getElementById("collection-list"),
     logList: document.getElementById("log-list"),
+    devPanel: document.getElementById("dev-panel"),
+    devInfo: document.getElementById("dev-info"),
+    devGold: document.getElementById("dev-gold"),
+    devZone: document.getElementById("dev-zone"),
+    devBoss: document.getElementById("dev-boss"),
+    exportSave: document.getElementById("export-save"),
+    importSave: document.getElementById("import-save"),
+    runTests: document.getElementById("run-tests"),
+    testResults: document.getElementById("test-results"),
     save: document.getElementById("save"),
     reset: document.getElementById("reset"),
     offlineModal: document.getElementById("offline-modal"),
     offlineText: document.getElementById("offline-text"),
     offlineClose: document.getElementById("offline-close"),
+    sessionModal: document.getElementById("session-modal"),
+    sessionContent: document.getElementById("session-content"),
+    sessionClose: document.getElementById("session-close"),
+    saveModal: document.getElementById("save-modal"),
+    saveText: document.getElementById("save-text"),
+    saveCopy: document.getElementById("save-copy"),
+    saveApply: document.getElementById("save-apply"),
+    saveClose: document.getElementById("save-close"),
   };
 
   function getDefaultState() {
@@ -460,6 +588,8 @@
         lifetimePrestiges: 0,
         lifetimeQuestClaims: 0,
         lifetimeSkillUses: 0,
+        foundRareWeapon: false,
+        foundEpicWeapon: false,
         foundRareRelic: false,
         foundEpicRelic: false,
         foundRareRune: false,
@@ -468,6 +598,7 @@
         achievements: {},
         titlesUnlocked: [],
         equippedTitle: "None",
+        collections: {},
       },
       run: {
         gold: 0,
@@ -493,6 +624,7 @@
           cry: { lastUsed: 0, activeUntil: 0 },
         },
         inventory: [],
+        equippedWeaponId: null,
         equippedRelicId: null,
         runes: [],
         equippedRuneId: null,
@@ -500,8 +632,15 @@
         freeRuneRefreshUsed: false,
         quests: [],
         freeRerollUsed: false,
+        weeklyQuest: null,
+        weeklyResetAt: 0,
+        chainQuest: null,
+        chainCompletedAt: 0,
         event: null,
         lastActiveAt: Date.now(),
+        comboCount: 0,
+        comboLastAt: 0,
+        weakPointAt: 0,
       },
       upgrades: {
         click: { level: 0, baseCost: 12 },
@@ -509,6 +648,17 @@
         crit: { level: 0, baseCost: 36 },
         multi: { level: 0, baseCost: 48 },
       },
+      session: {
+        startAt: Date.now(),
+        goldEarned: 0,
+        kills: 0,
+        bossKills: 0,
+        chapterBossKills: 0,
+        honorGained: 0,
+        drops: { Common: 0, Rare: 0, Epic: 0 },
+        questsCompleted: 0,
+      },
+      sessionHistory: [],
       log: [],
       achievementFilter: "all",
     };
@@ -517,7 +667,10 @@
   let state = getDefaultState();
   let dpsInterval = null;
   let autosaveInterval = null;
+  let weakPointTimeout = null;
   let autoCarry = 0;
+  let devMode = false;
+  let testMode = false;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -610,14 +763,13 @@
     state.run.monsterMaxHp = stats.hp;
     state.run.monsterHp = stats.hp;
 
-    el.monsterName.textContent = chapter
-      ? "CHAPTER BOSS"
-      : `${state.run.monsterName}`;
+    el.monsterName.textContent = chapter ? "CHAPTER BOSS" : `${state.run.monsterName}`;
     el.monsterType.textContent = stats.typeLabel;
     el.bossIndicator.classList.toggle("active", isBoss || chapter);
     el.bossIndicator.textContent = chapter ? "CHAPTER BOSS" : "Boss";
     updateRegionUi();
     updateHpUi();
+    resetWeakPoint();
   }
 
   function updateRegionUi() {
@@ -649,9 +801,9 @@
     el.hpFill.style.width = `${Math.floor(pct * 100)}%`;
   }
 
-  function addFloatingText(label, isCrit, isMiss) {
+  function addFloatingText(label, style) {
     const text = document.createElement("div");
-    text.className = `floating-text${isCrit ? " crit" : ""}${isMiss ? " miss" : ""}`;
+    text.className = `floating-text${style ? ` ${style}` : ""}`;
     text.textContent = label;
     const x = Math.random() * 120 + 20;
     const y = Math.random() * 60 + 40;
@@ -670,6 +822,13 @@
     }, 180);
   }
 
+  function getEquippedWeapon() {
+    if (!state.run.equippedWeaponId) {
+      return null;
+    }
+    return state.run.inventory.find((item) => item.id === state.run.equippedWeaponId) || null;
+  }
+
   function getEquippedRelic() {
     if (!state.run.equippedRelicId) {
       return null;
@@ -685,20 +844,28 @@
   }
 
   function getEquipmentBonuses() {
+    const weapon = getEquippedWeapon();
     const relic = getEquippedRelic();
-    const bonuses = { click: 0, auto: 0, crit: 0, gold: 0 };
-    if (!relic) {
-      return bonuses;
+    const bonuses = { click: 0, auto: 0, crit: 0, gold: 0, critMult: 0 };
+
+    if (weapon) {
+      if (weapon.statType === "click") {
+        bonuses.click += weapon.statValue;
+      } else if (weapon.statType === "crit") {
+        bonuses.crit += weapon.statValue;
+      } else if (weapon.statType === "critMult") {
+        bonuses.critMult += weapon.statValue;
+      }
     }
 
-    if (relic.statType === "click") {
-      bonuses.click = relic.statValue;
-    } else if (relic.statType === "auto") {
-      bonuses.auto = relic.statValue;
-    } else if (relic.statType === "crit") {
-      bonuses.crit = relic.statValue;
-    } else if (relic.statType === "gold") {
-      bonuses.gold = relic.statValue;
+    if (relic) {
+      if (relic.statType === "auto") {
+        bonuses.auto += relic.statValue;
+      } else if (relic.statType === "gold") {
+        bonuses.gold += relic.statValue;
+      } else if (relic.statType === "crit") {
+        bonuses.crit += relic.statValue;
+      }
     }
 
     return bonuses;
@@ -750,6 +917,20 @@
     return event;
   }
 
+  function getComboBonusPercent() {
+    const now = Date.now();
+    if (state.run.comboCount > 0 && now - state.run.comboLastAt > COMBO_WINDOW_MS) {
+      state.run.comboCount = 0;
+    }
+    const bonus = Math.min(30, Math.floor(state.run.comboCount / 10) * 2);
+    return bonus;
+  }
+
+  function getCollectionBonusPercent() {
+    const completed = REGIONS.filter((region) => state.meta.collections[region.id]).length;
+    return Math.min(5, completed);
+  }
+
   function getEffectiveCritChance(includeEvent = true) {
     const bonus = getEquipmentBonuses();
     const rune = getRuneBonuses();
@@ -762,6 +943,11 @@
     );
   }
 
+  function getEffectiveCritMultiplier() {
+    const bonus = getEquipmentBonuses();
+    return clamp(state.run.critMultiplierBase + bonus.critMult, 1.5, 3.0);
+  }
+
   function isSkillActive(skillId) {
     return Date.now() < state.run.skills[skillId].activeUntil;
   }
@@ -770,8 +956,9 @@
     const equip = getEquipmentBonuses();
     const rune = getRuneBonuses();
     const event = includeEvent ? getEventState() : null;
+    const comboBonus = getComboBonusPercent();
     const base = Math.max(1, state.run.clickDamageBase + equip.click);
-    const clickPct = 1 + rune.clickPct / 100 + (event && event.id === "frenzy" ? 1 : 0);
+    const clickPct = 1 + rune.clickPct / 100 + comboBonus / 100 + (event && event.id === "frenzy" ? 1 : 0);
     const skillMult = includeSkill && state.run.skills.selected === "power" && isSkillActive("power") ? 3 : 1;
     return Math.floor(base * clickPct * getHonorMultiplier() * skillMult);
   }
@@ -792,7 +979,7 @@
     const event = includeEvent ? getEventState() : null;
     const eventGold = event && event.id === "gold" ? 100 : 0;
     const skillGold = state.run.skills.selected === "cry" && isSkillActive("cry") ? 20 : 0;
-    return equip.gold + rune.goldPct + eventGold + skillGold;
+    return equip.gold + rune.goldPct + getCollectionBonusPercent() + eventGold + skillGold;
   }
 
   function getBossDamageMultiplier() {
@@ -839,6 +1026,32 @@
     el.eventTimer.textContent = formatTimer(remaining);
   }
 
+  function updateComboUi() {
+    const bonus = getComboBonusPercent();
+    el.comboDisplay.textContent = `Combo: ${state.run.comboCount} (+${bonus}%)`;
+    el.comboDisplay.classList.toggle("active", bonus > 0);
+    el.monsterArea.classList.toggle("combo-glow", bonus > 0);
+  }
+
+  function updateCollectionsUi() {
+    const completed = REGIONS.filter((region) => state.meta.collections[region.id]).length;
+    el.collectionSummary.textContent = `Sets completed: ${completed}/5`;
+    el.collectionBonus.textContent = `Gold bonus: +${getCollectionBonusPercent()}%`;
+    el.collectionList.innerHTML = "";
+    REGIONS.forEach((region) => {
+      const card = document.createElement("div");
+      card.className = "collection-card";
+      const name = document.createElement("div");
+      name.textContent = region.setName;
+      const status = document.createElement("div");
+      status.className = "stat";
+      status.textContent = state.meta.collections[region.id] ? "Discovered" : "Missing";
+      card.appendChild(name);
+      card.appendChild(status);
+      el.collectionList.appendChild(card);
+    });
+  }
+
   function updateQuests(eventType, amount) {
     let updated = false;
     state.run.quests.forEach((quest) => {
@@ -859,6 +1072,9 @@
         addLog(`Quest complete: ${quest.title}`);
       }
     });
+
+    updateWeeklyQuestProgress(eventType, amount);
+    updateChainProgress(eventType, amount);
 
     if (updated) {
       updateQuestUi();
@@ -908,13 +1124,18 @@
     state.meta.lifetimeKills += 1;
     state.meta.lifetimeGold += goldGain;
 
+    state.session.goldEarned += goldGain;
+    state.session.kills += 1;
+
     if (state.run.isBoss || state.run.isChapterBoss) {
       state.meta.lifetimeBossKills += 1;
+      state.session.bossKills += 1;
       updateQuests("boss_kill", 1);
     }
 
     if (state.run.isChapterBoss) {
       state.meta.lifetimeChapterBossKills += 1;
+      state.session.chapterBossKills += 1;
       addLog("Chapter boss defeated!");
     }
 
@@ -935,13 +1156,13 @@
     spawnMonster(nextIsBoss);
   }
 
-  function dealDamage(amount, isCrit = false) {
+  function dealDamage(amount, style) {
     if (state.run.monsterHp <= 0) {
       return;
     }
 
     state.run.monsterHp = Math.max(0, state.run.monsterHp - amount);
-    addFloatingText(`-${formatNumber(amount)}`, isCrit, false);
+    addFloatingText(`-${formatNumber(amount)}`, style);
     updateHpUi();
 
     if (state.run.monsterHp <= 0) {
@@ -951,26 +1172,38 @@
     updateUi();
   }
 
-  function handleClick() {
+  function registerCombo() {
+    const now = Date.now();
+    if (now - state.run.comboLastAt <= COMBO_WINDOW_MS) {
+      state.run.comboCount += 1;
+    } else {
+      state.run.comboCount = 1;
+    }
+    state.run.comboLastAt = now;
+  }
+
+  function handleClick(isWeak = false) {
     if (state.run.monsterHp <= 0) {
       return;
     }
 
     const monsterType = getMonsterType(state.run.monsterTypeId);
-    if (monsterType.dodge > 0 && chance(monsterType.dodge)) {
-      addFloatingText("MISS", false, true);
+    if (!isWeak && monsterType.dodge > 0 && chance(monsterType.dodge)) {
+      addFloatingText("MISS", "miss");
       hitEffects();
       addLog("The runner dodged your strike.");
       return;
     }
 
+    registerCombo();
+
     const critChance = getEffectiveCritChance();
     const isCrit = Math.random() < critChance;
     let damage = getEffectiveClickDamage(true);
     damage = Math.floor(damage * getBossDamageMultiplier() * getTypeDamageMultiplier());
-    damage = isCrit ? Math.floor(damage * state.run.critMultiplierBase) : damage;
+    damage = isCrit ? Math.floor(damage * getEffectiveCritMultiplier()) : damage;
 
-    dealDamage(damage, isCrit);
+    dealDamage(damage, isCrit ? "crit" : "");
     hitEffects();
 
     state.meta.lifetimeClickDamage += damage;
@@ -979,6 +1212,27 @@
     if (isCrit) {
       state.meta.lifetimeCrits += 1;
       updateQuests("crit", 1);
+    }
+
+    if (isWeak) {
+      const weakBase = getEffectiveClickDamage(true);
+      const weakMultiplier = state.run.isChapterBoss ? 1.25 : 2.5;
+      const weakDamage = Math.floor(weakBase * weakMultiplier);
+      dealDamage(weakDamage, "weak");
+
+      const stats = getMonsterStats(
+        state.run.zone,
+        state.run.monsterTypeId,
+        state.run.isBoss,
+        state.run.isChapterBoss
+      );
+      const bonusGold = Math.floor(stats.gold * 0.5);
+      state.run.gold += bonusGold;
+      state.run.goldEarnedThisRun += bonusGold;
+      state.meta.lifetimeGold += bonusGold;
+      state.session.goldEarned += bonusGold;
+      addFloatingText(`+${formatNumber(bonusGold)}g`, "weak");
+      addLog("Weak point hit!");
     }
   }
 
@@ -993,7 +1247,7 @@
     const intDamage = Math.floor(autoCarry);
     if (intDamage >= 1) {
       const damage = Math.floor(intDamage * getBossDamageMultiplier() * getTypeDamageMultiplier());
-      dealDamage(damage, false);
+      dealDamage(damage, "");
       autoCarry -= intDamage;
     }
   }
@@ -1045,17 +1299,30 @@
   }
 
   function updateInventoryUi() {
+    const weapon = getEquippedWeapon();
+    if (weapon) {
+      el.equippedWeaponName.textContent = `${weapon.name} (${weapon.rarity})`;
+      el.equippedWeaponName.className = `equipped-name rarity-${weapon.rarity.toLowerCase()}`;
+      el.equippedWeaponStat.textContent = describeItemStat(weapon);
+      el.unequipWeapon.disabled = false;
+    } else {
+      el.equippedWeaponName.textContent = "None";
+      el.equippedWeaponName.className = "equipped-name";
+      el.equippedWeaponStat.textContent = "No bonus";
+      el.unequipWeapon.disabled = true;
+    }
+
     const relic = getEquippedRelic();
     if (relic) {
-      el.equippedName.textContent = `${relic.name} (${relic.rarity})`;
-      el.equippedName.className = `equipped-name rarity-${relic.rarity.toLowerCase()}`;
-      el.equippedStat.textContent = describeRelicStat(relic);
-      el.unequip.disabled = false;
+      el.equippedRelicName.textContent = `${relic.name} (${relic.rarity})`;
+      el.equippedRelicName.className = `equipped-name rarity-${relic.rarity.toLowerCase()}`;
+      el.equippedRelicStat.textContent = describeItemStat(relic);
+      el.unequipRelic.disabled = false;
     } else {
-      el.equippedName.textContent = "None";
-      el.equippedName.className = "equipped-name";
-      el.equippedStat.textContent = "No bonus";
-      el.unequip.disabled = true;
+      el.equippedRelicName.textContent = "None";
+      el.equippedRelicName.className = "equipped-name";
+      el.equippedRelicStat.textContent = "No bonus";
+      el.unequipRelic.disabled = true;
     }
 
     const rune = getEquippedRune();
@@ -1087,13 +1354,17 @@
 
       const stat = document.createElement("div");
       stat.className = "stat";
-      stat.textContent = describeRelicStat(item);
+      stat.textContent = `${item.slot.toUpperCase()} | ${describeItemStat(item)}`;
 
       const button = document.createElement("button");
       button.className = "small";
-      button.textContent = item.id === state.run.equippedRelicId ? "Equipped" : "Equip";
-      button.disabled = item.id === state.run.equippedRelicId;
+      const isEquipped =
+        (item.slot === "weapon" && item.id === state.run.equippedWeaponId) ||
+        (item.slot === "relic" && item.id === state.run.equippedRelicId);
+      button.textContent = isEquipped ? "Equipped" : "Equip";
+      button.disabled = isEquipped;
       button.dataset.equipId = item.id;
+      button.dataset.test = "equip-item";
 
       wrap.appendChild(name);
       wrap.appendChild(stat);
@@ -1125,6 +1396,7 @@
       button.textContent = "Buy";
       button.disabled = state.run.gold < rune.cost || state.run.runes.length >= RUNE_MAX;
       button.dataset.buyRuneId = rune.id;
+      button.dataset.test = "rune-buy";
 
       wrap.appendChild(name);
       wrap.appendChild(stat);
@@ -1151,6 +1423,7 @@
       button.textContent = rune.id === state.run.equippedRuneId ? "Socketed" : "Socket";
       button.disabled = rune.id === state.run.equippedRuneId || !getEquippedRelic();
       button.dataset.socketRuneId = rune.id;
+      button.dataset.test = "rune-socket";
 
       wrap.appendChild(name);
       wrap.appendChild(stat);
@@ -1163,44 +1436,81 @@
     el.runeRefresh.disabled = state.run.freeRuneRefreshUsed && state.run.gold < refreshCost;
   }
 
+  function renderQuestCard(quest) {
+    const card = document.createElement("div");
+    card.className = "quest";
+
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = quest.title;
+
+    const desc = document.createElement("div");
+    desc.textContent = quest.description;
+
+    const progress = document.createElement("div");
+    progress.className = "progress";
+    progress.textContent = `${formatNumber(quest.progress)} / ${formatNumber(quest.target)}`;
+
+    const reward = document.createElement("div");
+    const rewardLabel = quest.rewardType === "honor" ? "Honor" : quest.rewardType === "rune" ? "Rune" : "Gold";
+    reward.textContent = `Reward: ${formatNumber(quest.rewardAmount)} ${rewardLabel}`;
+
+    const button = document.createElement("button");
+    button.className = "small";
+    if (quest.completed) {
+      button.textContent = "Claim";
+      button.dataset.claimId = quest.id;
+      button.dataset.test = "quest-claim";
+    } else {
+      button.textContent = "In Progress";
+      button.disabled = true;
+    }
+
+    card.appendChild(title);
+    card.appendChild(desc);
+    card.appendChild(progress);
+    card.appendChild(reward);
+    card.appendChild(button);
+    return card;
+  }
+
   function updateQuestUi() {
     el.questList.innerHTML = "";
     state.run.quests.forEach((quest) => {
+      el.questList.appendChild(renderQuestCard(quest));
+    });
+
+    el.weeklyQuest.innerHTML = "";
+    if (state.run.weeklyQuest) {
+      el.weeklyQuest.appendChild(renderQuestCard(state.run.weeklyQuest));
+    }
+
+    el.chainQuest.innerHTML = "";
+    if (state.run.chainQuest) {
       const card = document.createElement("div");
       card.className = "quest";
-
       const title = document.createElement("div");
       title.className = "title";
-      title.textContent = quest.title;
-
+      title.textContent = `${state.run.chainQuest.title} (Step ${state.run.chainQuest.stepIndex + 1}/3)`;
       const desc = document.createElement("div");
-      desc.textContent = quest.description;
-
+      desc.textContent = state.run.chainQuest.description;
       const progress = document.createElement("div");
       progress.className = "progress";
-      progress.textContent = `${formatNumber(quest.progress)} / ${formatNumber(quest.target)}`;
-
-      const reward = document.createElement("div");
-      const rewardLabel = quest.rewardType === "honor" ? "Honor" : quest.rewardType === "rune" ? "Rune" : "Gold";
-      reward.textContent = `Reward: ${formatNumber(quest.rewardAmount)} ${rewardLabel}`;
-
-      const button = document.createElement("button");
-      button.className = "small";
-      if (quest.completed) {
-        button.textContent = "Claim";
-        button.dataset.claimId = quest.id;
-      } else {
-        button.textContent = "In Progress";
-        button.disabled = true;
-      }
-
+      progress.textContent = `${formatNumber(state.run.chainQuest.progress)} / ${formatNumber(
+        state.run.chainQuest.target
+      )}`;
       card.appendChild(title);
       card.appendChild(desc);
       card.appendChild(progress);
-      card.appendChild(reward);
-      card.appendChild(button);
-      el.questList.appendChild(card);
-    });
+      el.chainQuest.appendChild(card);
+    }
+  }
+
+  function updateWeeklyResetUi() {
+    const now = Date.now();
+    const remaining = Math.max(0, state.run.weeklyResetAt - now);
+    const days = Math.ceil(remaining / (24 * 60 * 60 * 1000));
+    el.weeklyReset.textContent = `Resets in ${days}d`;
   }
 
   function updateAchievementsUi() {
@@ -1270,6 +1580,28 @@
     });
   }
 
+  function updateDevUi() {
+    if (!devMode) {
+      el.devPanel.classList.remove("active");
+      return;
+    }
+    el.devPanel.classList.add("active");
+    const rune = getRuneBonuses();
+    const event = getEventState();
+    el.devInfo.textContent = [
+      `Click Damage: ${getEffectiveClickDamage(true)}`,
+      `Auto DPS: ${Math.floor(getEffectiveAutoDps(true))}`,
+      `Crit Chance: ${Math.floor(getEffectiveCritChance() * 100)}%`,
+      `Crit Mult: ${getEffectiveCritMultiplier().toFixed(2)}x`,
+      `Gold Bonus: ${getGoldBonusPercent()}%`,
+      `Rune: boss ${rune.bossPct}% | gold ${rune.goldPct}% | crit ${rune.critPct}% | cd ${rune.cooldownPct}% | click ${rune.clickPct}% | auto ${rune.autoPct}%`,
+      `Event: ${event ? event.name : "None"}`,
+      `Monster HP: ${state.run.monsterHp}/${state.run.monsterMaxHp}`,
+      `Monster Type: ${state.run.monsterTypeId}`,
+      `Boss: ${state.run.isBoss} | Chapter: ${state.run.isChapterBoss}`,
+    ].join("\n");
+  }
+
   function updateUi() {
     el.gold.textContent = formatNumber(state.run.gold);
     el.honor.textContent = formatNumber(state.meta.totalHonor);
@@ -1281,7 +1613,7 @@
     el.clickDmg.textContent = formatNumber(getEffectiveClickDamage(true));
     el.autoDps.textContent = formatNumber(getEffectiveAutoDps(true));
     el.critChance.textContent = `${Math.floor(getEffectiveCritChance() * 100)}%`;
-    el.critMulti.textContent = `${state.run.critMultiplierBase.toFixed(1)}x`;
+    el.critMulti.textContent = `${getEffectiveCritMultiplier().toFixed(2)}x`;
     el.goldBonus.textContent = `${formatNumber(getGoldBonusPercent())}%`;
     el.zoneProgress.textContent = `${formatNumber(state.run.killsInZone)} / ${ZONE_KILLS}`;
 
@@ -1309,18 +1641,25 @@
     el.reroll.textContent = rerollCost === 0 ? "Reroll (Free)" : "Reroll (500g)";
     el.reroll.disabled = state.run.freeRerollUsed && state.run.gold < 500;
 
-    checkAchievements();
+    updateComboUi();
     updateSkillUi();
     updatePrestigeUi();
     updateInventoryUi();
     updateRuneUi();
     updateQuestUi();
+    updateWeeklyResetUi();
     updateAchievementsUi();
+    updateCollectionsUi();
     updateEventUi();
     updateLogUi();
+    updateDevUi();
+    checkAchievements();
   }
 
   function buyUpgrade(type) {
+    if (testMode) {
+      return;
+    }
     const upgrade = state.upgrades[type];
     const cost = getUpgradeCost(upgrade);
 
@@ -1352,6 +1691,17 @@
     updateUi();
   }
 
+  function getEquipmentRarity() {
+    const roll = randInt(1, 100);
+    if (roll > 95) {
+      return "Epic";
+    }
+    if (roll > 70) {
+      return "Rare";
+    }
+    return "Common";
+  }
+
   function tryDropEquipment() {
     const dropChance = state.run.isBoss || state.run.isChapterBoss ? 0.12 : 0.03;
     if (!chance(dropChance)) {
@@ -1359,63 +1709,95 @@
     }
 
     if (state.run.inventory.length >= INVENTORY_MAX) {
-      addLog("Inventory full. Relic discarded.");
+      addLog("Inventory full. Gear discarded.");
       return;
     }
 
-    const rarityRoll = randInt(1, 100);
-    let rarity = "Common";
-    if (rarityRoll > 95) {
-      rarity = "Epic";
-    } else if (rarityRoll > 70) {
-      rarity = "Rare";
-    }
-
-    const statType = ["click", "auto", "crit", "gold"][randInt(0, 3)];
-    const zone = state.run.zone;
-    let statValue = 1;
-
-    if (rarity === "Common") {
-      statValue = Math.floor(1 + zone * 0.5);
-    } else if (rarity === "Rare") {
-      statValue = Math.floor(2 + zone * 0.9);
-    } else {
-      statValue = Math.floor(4 + zone * 1.5);
-    }
-
-    if (statType === "crit") {
-      statValue = Math.min(statValue, 50);
-    }
-
-    const name = generateItemName(rarity);
-    const item = {
-      id: `relic-${Date.now()}-${randInt(1000, 9999)}`,
-      name,
-      rarity,
-      statType,
-      statValue,
-    };
+    const rarity = getEquipmentRarity();
+    const slot = chance(0.5) ? "weapon" : "relic";
+    const region = getRegionForZone(state.run.zone);
+    const item = generateEquipmentItem(rarity, slot, region.id);
 
     state.run.inventory.push(item);
-    if (rarity === "Rare") {
+    state.session.drops[rarity] += 1;
+    if (slot === "weapon" && rarity === "Rare") {
+      state.meta.foundRareWeapon = true;
+    }
+    if (slot === "weapon" && rarity === "Epic") {
+      state.meta.foundEpicWeapon = true;
+    }
+    if (slot === "relic" && rarity === "Rare") {
       state.meta.foundRareRelic = true;
     }
-    if (rarity === "Epic") {
+    if (slot === "relic" && rarity === "Epic") {
       state.meta.foundEpicRelic = true;
     }
-    addLog(`Found ${rarity} relic: ${name}.`);
+
+    state.meta.collections[item.setId] = true;
+    if (Object.values(state.meta.collections).filter(Boolean).length >= 5) {
+      if (!state.meta.titlesUnlocked.includes("Collector")) {
+        state.meta.titlesUnlocked.push("Collector");
+      }
+    }
+
+    addLog(`Found ${rarity} ${slot}: ${item.name}.`);
     updateInventoryUi();
   }
 
-  function generateItemName(rarity) {
+  function generateEquipmentItem(rarity, slot, setId) {
+    const zone = state.run.zone;
+    const base = rarity === "Common" ? 1 : rarity === "Rare" ? 2 : 4;
+    const scale = rarity === "Common" ? 0.5 : rarity === "Rare" ? 0.9 : 1.5;
+    const flatValue = Math.floor(base + zone * scale);
+    let statType = "click";
+    let statValue = flatValue;
+
+    if (slot === "weapon") {
+      const roll = randInt(0, 2);
+      if (roll === 1) {
+        statType = "crit";
+        statValue = Math.min(15, Math.floor(flatValue / 2) + 2);
+      } else if (roll === 2) {
+        statType = "critMult";
+        statValue = clamp(0.05 + zone * 0.003, 0.05, 0.35);
+        statValue = Math.round(statValue * 100) / 100;
+      } else {
+        statType = "click";
+      }
+    } else {
+      const roll = randInt(0, 2);
+      if (roll === 1) {
+        statType = "gold";
+        statValue = Math.min(25, Math.floor(flatValue / 2) + 3);
+      } else if (roll === 2) {
+        statType = "crit";
+        statValue = Math.min(12, Math.floor(flatValue / 2) + 1);
+      } else {
+        statType = "auto";
+      }
+    }
+
+    return {
+      id: `item-${Date.now()}-${randInt(1000, 9999)}`,
+      name: generateItemName(rarity, slot),
+      rarity,
+      slot,
+      statType,
+      statValue,
+      setId,
+    };
+  }
+
+  function generateItemName(rarity, slot) {
     const prefix = ["Old", "Runed", "Gleaming", "Cursed", "Ancient", "Sturdy"];
+    const weapons = ["Blade", "Axe", "Spear", "Hammer", "Dagger", "Mace"];
     const relics = ["Relic", "Talisman", "Sigil", "Charm", "Emblem", "Token"];
     const p = prefix[randInt(0, prefix.length - 1)];
-    const r = relics[randInt(0, relics.length - 1)];
+    const r = slot === "weapon" ? weapons[randInt(0, weapons.length - 1)] : relics[randInt(0, relics.length - 1)];
     return `${p} ${rarity} ${r}`;
   }
 
-  function describeRelicStat(item) {
+  function describeItemStat(item) {
     if (item.statType === "click") {
       return `+${formatNumber(item.statValue)} Click Damage`;
     }
@@ -1428,6 +1810,9 @@
     if (item.statType === "gold") {
       return `+${formatNumber(item.statValue)}% Gold`;
     }
+    if (item.statType === "critMult") {
+      return `+${item.statValue.toFixed(2)} Crit Mult`;
+    }
     return "";
   }
 
@@ -1435,14 +1820,27 @@
     return `${rune.effectLabel} ${formatNumber(rune.value)}%`;
   }
 
-  function equipRelic(itemId) {
+  function equipItem(itemId) {
     const item = state.run.inventory.find((entry) => entry.id === itemId);
     if (!item) {
       return;
     }
 
-    state.run.equippedRelicId = item.id;
+    if (item.slot === "weapon") {
+      state.run.equippedWeaponId = item.id;
+    } else {
+      state.run.equippedRelicId = item.id;
+    }
     addLog(`Equipped ${item.name}.`);
+    updateUi();
+  }
+
+  function unequipWeapon() {
+    if (!state.run.equippedWeaponId) {
+      return;
+    }
+    state.run.equippedWeaponId = null;
+    addLog("Weapon unequipped.");
     updateUi();
   }
 
@@ -1451,19 +1849,13 @@
       return;
     }
     state.run.equippedRelicId = null;
+    state.run.equippedRuneId = null;
     addLog("Relic unequipped.");
     updateUi();
   }
 
   function generateRune() {
-    const rarityRoll = randInt(1, 100);
-    let rarity = "Common";
-    if (rarityRoll > 95) {
-      rarity = "Epic";
-    } else if (rarityRoll > 70) {
-      rarity = "Rare";
-    }
-
+    const rarity = getEquipmentRarity();
     const effect = RUNE_EFFECTS[randInt(0, RUNE_EFFECTS.length - 1)];
     let value = 3;
     if (rarity === "Common") {
@@ -1478,7 +1870,7 @@
       value = Math.min(value, 20);
     }
 
-    const rune = {
+    return {
       id: `rune-${Date.now()}-${randInt(1000, 9999)}`,
       name: `${rarity} ${effect.label}`,
       rarity,
@@ -1487,12 +1879,10 @@
       value,
       cost: Math.floor(120 + value * 20),
     };
-
-    return rune;
   }
 
   function refreshRuneShop(forceFree = false) {
-    if (!forceFree) {
+    if (!forceFree && !testMode) {
       const cost = state.run.freeRuneRefreshUsed ? RUNE_REFRESH_COST : 0;
       if (cost > 0) {
         if (state.run.gold < cost) {
@@ -1525,6 +1915,9 @@
   }
 
   function buyRune(runeId) {
+    if (testMode) {
+      return;
+    }
     const runeIndex = state.run.runeShop.findIndex((r) => r.id === runeId);
     if (runeIndex === -1) {
       return;
@@ -1597,34 +1990,164 @@
     }
   }
 
+  function createWeeklyQuest() {
+    const template = WEEKLY_TEMPLATES[randInt(0, WEEKLY_TEMPLATES.length - 1)];
+    const target = template.target();
+    const reward = template.reward();
+    return {
+      id: `weekly-${Date.now()}-${randInt(1000, 9999)}`,
+      title: template.title,
+      description: template.desc(target),
+      type: template.type,
+      target,
+      progress: 0,
+      completed: false,
+      rewardType: reward.type,
+      rewardAmount: reward.amount,
+    };
+  }
+
+  function ensureWeeklyQuest() {
+    const now = Date.now();
+    if (!state.run.weeklyQuest || now >= state.run.weeklyResetAt) {
+      state.run.weeklyQuest = createWeeklyQuest();
+      state.run.weeklyResetAt = now + 7 * 24 * 60 * 60 * 1000;
+    }
+  }
+
+  function createChainQuest() {
+    const template = CHAIN_TEMPLATES[randInt(0, CHAIN_TEMPLATES.length - 1)];
+    const step = template.steps[0];
+    return {
+      templateId: template.id,
+      title: template.title,
+      stepIndex: 0,
+      type: step.type,
+      target: step.target,
+      progress: 0,
+      description: step.desc,
+    };
+  }
+
+  function ensureChainQuest() {
+    if (!state.run.chainQuest) {
+      state.run.chainQuest = createChainQuest();
+    }
+  }
+
+  function advanceChain() {
+    if (!state.run.chainQuest) {
+      return;
+    }
+    const template = CHAIN_TEMPLATES.find((t) => t.id === state.run.chainQuest.templateId);
+    if (!template) {
+      state.run.chainQuest = createChainQuest();
+      return;
+    }
+
+    if (state.run.chainQuest.stepIndex < 2) {
+      const nextIndex = state.run.chainQuest.stepIndex + 1;
+      const step = template.steps[nextIndex];
+      state.run.chainQuest.stepIndex = nextIndex;
+      state.run.chainQuest.type = step.type;
+      state.run.chainQuest.target = step.target;
+      state.run.chainQuest.progress = 0;
+      state.run.chainQuest.description = step.desc;
+    } else {
+      state.run.chainCompletedAt = Date.now();
+      addLog("Quest chain completed!");
+    }
+  }
+
+  function maybeResetChain() {
+    if (state.run.chainCompletedAt && Date.now() - state.run.chainCompletedAt > 5000) {
+      state.run.chainQuest = createChainQuest();
+      state.run.chainCompletedAt = 0;
+    }
+  }
+
+  function updateWeeklyQuestProgress(eventType, amount) {
+    const quest = state.run.weeklyQuest;
+    if (!quest || quest.completed) {
+      return;
+    }
+    if (quest.type === "zone_reach" && eventType === "zone_reach") {
+      quest.progress = Math.max(quest.progress, amount);
+    } else if (quest.type === eventType) {
+      quest.progress += amount;
+    }
+    if (quest.progress >= quest.target) {
+      quest.completed = true;
+      addLog(`Weekly quest complete: ${quest.title}`);
+    }
+  }
+
+  function updateChainProgress(eventType, amount) {
+    const chain = state.run.chainQuest;
+    if (!chain || state.run.chainCompletedAt) {
+      return;
+    }
+    if (chain.type === "zone_reach" && eventType === "zone_reach") {
+      chain.progress = Math.max(chain.progress, amount);
+    } else if (chain.type === eventType) {
+      chain.progress += amount;
+    }
+    if (chain.progress >= chain.target) {
+      advanceChain();
+    }
+  }
+
   function claimQuest(questId) {
-    const questIndex = state.run.quests.findIndex((quest) => quest.id === questId);
-    if (questIndex === -1) {
+    if (testMode) {
+      return;
+    }
+    let questIndex = state.run.quests.findIndex((quest) => quest.id === questId);
+    if (questIndex !== -1) {
+      const quest = state.run.quests[questIndex];
+      if (!quest.completed) {
+        return;
+      }
+      handleQuestReward(quest);
+      state.run.quests.splice(questIndex, 1, createQuest());
       return;
     }
 
-    const quest = state.run.quests[questIndex];
-    if (!quest.completed) {
+    if (state.run.weeklyQuest && state.run.weeklyQuest.id === questId) {
+      if (!state.run.weeklyQuest.completed) {
+        return;
+      }
+      handleQuestReward(state.run.weeklyQuest);
+      state.run.weeklyQuest = createWeeklyQuest();
       return;
     }
+  }
 
+  function handleQuestReward(quest) {
     if (quest.rewardType === "honor") {
       state.meta.totalHonor += quest.rewardAmount;
+      state.session.honorGained += quest.rewardAmount;
     } else if (quest.rewardType === "rune") {
       const rune = generateRune();
       addRuneToInventory(rune);
       addLog(`Quest reward: ${rune.name}.`);
+    } else if (quest.rewardType === "title") {
+      if (!state.meta.titlesUnlocked.includes(quest.rewardAmount)) {
+        state.meta.titlesUnlocked.push(quest.rewardAmount);
+      }
     } else {
       state.run.gold += quest.rewardAmount;
     }
 
     state.meta.lifetimeQuestClaims += 1;
+    state.session.questsCompleted += 1;
     addLog(`Quest claimed: ${quest.title}.`);
-    state.run.quests.splice(questIndex, 1, createQuest());
     updateUi();
   }
 
   function rerollQuests() {
+    if (testMode) {
+      return;
+    }
     const rerollCost = state.run.freeRerollUsed ? 500 : 0;
     if (rerollCost > 0 && state.run.gold < rerollCost) {
       return;
@@ -1642,6 +2165,9 @@
   }
 
   function activateSkill() {
+    if (testMode) {
+      return;
+    }
     const selected = state.run.skills.selected;
     const now = Date.now();
     const cooldown = getSkillCooldown(selected);
@@ -1670,6 +2196,9 @@
   }
 
   function prestige() {
+    if (testMode) {
+      return;
+    }
     if (state.run.zone < PRESTIGE_ZONE) {
       return;
     }
@@ -1686,10 +2215,28 @@
 
     state.meta.totalHonor += honorGained;
     state.meta.lifetimePrestiges += 1;
+    state.session.honorGained += honorGained;
     addLog(`Prestiged for ${honorGained} Honor.`);
+    finalizeSession();
     resetRun();
     saveGame();
     updateUi();
+  }
+
+  function finalizeSession() {
+    const session = { ...state.session, endAt: Date.now() };
+    state.sessionHistory.unshift(session);
+    state.sessionHistory = state.sessionHistory.slice(0, 10);
+    state.session = {
+      startAt: Date.now(),
+      goldEarned: 0,
+      kills: 0,
+      bossKills: 0,
+      chapterBossKills: 0,
+      honorGained: 0,
+      drops: { Common: 0, Rare: 0, Epic: 0 },
+      questsCompleted: 0,
+    };
   }
 
   function resetRun() {
@@ -1702,6 +2249,8 @@
     autoCarry = 0;
     spawnMonster(false);
     ensureQuests();
+    ensureWeeklyQuest();
+    ensureChainQuest();
     refreshRuneShop(true);
   }
 
@@ -1739,6 +2288,9 @@
     state.meta.lifetimeKills += killsGain;
     state.meta.lifetimeGold += goldGain;
 
+    state.session.goldEarned += goldGain;
+    state.session.kills += killsGain;
+
     while (state.run.killsInZone >= ZONE_KILLS) {
       state.run.zone += 1;
       state.run.killsInZone -= ZONE_KILLS;
@@ -1755,17 +2307,114 @@
     el.offlineModal.classList.add("active");
   }
 
+  function showSessionReport() {
+    const current = state.session;
+    const last = state.sessionHistory[0];
+    const format = (session, label) => {
+      if (!session) {
+        return `${label}: None`;
+      }
+      return [
+        `${label}:`,
+        `Start: ${new Date(session.startAt).toLocaleString()}`,
+        session.endAt ? `End: ${new Date(session.endAt).toLocaleString()}` : "End: Active",
+        `Gold Earned: ${formatNumber(session.goldEarned)}`,
+        `Kills: ${formatNumber(session.kills)}`,
+        `Boss Kills: ${formatNumber(session.bossKills)}`,
+        `Chapter Boss Kills: ${formatNumber(session.chapterBossKills)}`,
+        `Honor Gained: ${formatNumber(session.honorGained)}`,
+        `Drops (C/R/E): ${session.drops.Common}/${session.drops.Rare}/${session.drops.Epic}`,
+        `Quests Completed: ${formatNumber(session.questsCompleted)}`,
+      ].join("\n");
+    };
+
+    el.sessionContent.textContent = `${format(current, "Current Session")}\n\n${format(
+      last,
+      "Last Completed Session"
+    )}`;
+    el.sessionModal.classList.add("active");
+  }
+
   function saveGame() {
     state.run.lastActiveAt = Date.now();
+    const runSave = { ...state.run, comboCount: 0, comboLastAt: 0 };
     const payload = {
-      version: "v0.3",
+      version: "v0.4",
       meta: state.meta,
-      run: state.run,
+      run: runSave,
       upgrades: state.upgrades,
       log: state.log,
+      session: state.session,
+      sessionHistory: state.sessionHistory,
     };
 
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+  }
+
+  function applyImportedData(data) {
+    const defaults = getDefaultState();
+    state.meta = { ...defaults.meta, ...data.meta };
+    state.meta.achievements = { ...defaults.meta.achievements, ...state.meta.achievements };
+    state.meta.titlesUnlocked = state.meta.titlesUnlocked || [];
+    state.meta.regionsReached = state.meta.regionsReached || ["greenfields"];
+    state.meta.collections = { ...defaults.meta.collections, ...state.meta.collections };
+
+    state.run = { ...defaults.run, ...data.run };
+    state.run.skills = { ...defaults.run.skills, ...state.run.skills };
+
+    state.upgrades = { ...defaults.upgrades, ...data.upgrades };
+    Object.keys(state.upgrades).forEach((key) => {
+      state.upgrades[key].baseCost = defaults.upgrades[key].baseCost;
+      state.upgrades[key].level = Math.max(0, state.upgrades[key].level || 0);
+    });
+
+    state.session = { ...defaults.session, ...data.session };
+    state.sessionHistory = Array.isArray(data.sessionHistory) ? data.sessionHistory : [];
+    state.log = Array.isArray(data.log) ? data.log : [];
+
+    state.run.critChanceBase = clamp(state.run.critChanceBase, 0, 0.5);
+    state.run.critMultiplierBase = clamp(state.run.critMultiplierBase, 1.5, 3.0);
+    state.run.gold = Math.max(0, state.run.gold || 0);
+    state.run.zone = Math.max(1, state.run.zone || 1);
+    state.run.highestZone = Math.max(state.run.zone, state.run.highestZone || state.run.zone);
+
+    if (!Array.isArray(state.run.inventory)) {
+      state.run.inventory = [];
+    }
+    state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
+    state.run.inventory.forEach((item) => {
+      if (!item.slot) {
+        item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
+      }
+    });
+    if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
+      state.run.equippedRelicId = null;
+    }
+    if (!state.run.inventory.find((item) => item.id === state.run.equippedWeaponId)) {
+      state.run.equippedWeaponId = null;
+    }
+
+    if (!Array.isArray(state.run.runes)) {
+      state.run.runes = [];
+    }
+    state.run.runes = state.run.runes.slice(0, RUNE_MAX);
+    if (!state.run.runes.find((rune) => rune.id === state.run.equippedRuneId)) {
+      state.run.equippedRuneId = null;
+    }
+
+    if (!Array.isArray(state.run.runeShop) || state.run.runeShop.length === 0) {
+      state.run.runeShop = [generateRune(), generateRune(), generateRune(), generateRune()];
+    }
+
+    if (!Array.isArray(state.run.quests) || state.run.quests.length === 0) {
+      state.run.quests = [];
+    }
+
+    ensureQuests();
+    ensureWeeklyQuest();
+    ensureChainQuest();
+    spawnMonster(state.run.isBoss, state.run.monsterTypeId);
+    updateHpUi();
   }
 
   function loadState() {
@@ -1773,6 +2422,8 @@
     if (!raw) {
       spawnMonster(false);
       ensureQuests();
+      ensureWeeklyQuest();
+      ensureChainQuest();
       refreshRuneShop(true);
       return;
     }
@@ -1786,6 +2437,7 @@
         state.meta.achievements = { ...defaults.meta.achievements, ...data.meta.achievements };
         state.meta.titlesUnlocked = data.meta.titlesUnlocked || [];
         state.meta.regionsReached = data.meta.regionsReached || ["greenfields"];
+        state.meta.collections = { ...defaults.meta.collections, ...data.meta.collections };
       }
 
       if (data.run) {
@@ -1800,6 +2452,14 @@
           state.upgrades[key].level = Math.max(0, state.upgrades[key].level || 0);
         });
       }
+
+      if (data.session) {
+        state.session = { ...defaults.session, ...data.session };
+      }
+      if (Array.isArray(data.sessionHistory)) {
+        state.sessionHistory = data.sessionHistory;
+      }
+      state.log = Array.isArray(data.log) ? data.log : [];
 
       if (!data.meta && typeof data.gold === "number") {
         state.run.gold = data.gold;
@@ -1816,18 +2476,33 @@
         state.upgrades = data.upgrades ?? state.upgrades;
       }
 
+      if (state.run.equippedRelicId && !state.run.equippedWeaponId) {
+        state.run.equippedWeaponId = null;
+      }
+
+      state.run.comboCount = 0;
+      state.run.comboLastAt = 0;
+
       state.run.critChanceBase = clamp(state.run.critChanceBase, 0, 0.5);
       state.run.critMultiplierBase = clamp(state.run.critMultiplierBase, 1.5, 3.0);
       state.run.gold = Math.max(0, state.run.gold || 0);
       state.run.zone = Math.max(1, state.run.zone || 1);
       state.run.highestZone = Math.max(state.run.zone, state.run.highestZone || state.run.zone);
 
-      if (!Array.isArray(state.run.inventory)) {
-        state.run.inventory = [];
+    if (!Array.isArray(state.run.inventory)) {
+      state.run.inventory = [];
+    }
+    state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
+    state.run.inventory.forEach((item) => {
+      if (!item.slot) {
+        item.slot = item.statType === "click" || item.statType === "critMult" ? "weapon" : "relic";
       }
-      state.run.inventory = state.run.inventory.slice(0, INVENTORY_MAX);
-      if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
-        state.run.equippedRelicId = null;
+    });
+    if (!state.run.inventory.find((item) => item.id === state.run.equippedRelicId)) {
+      state.run.equippedRelicId = null;
+    }
+    if (!state.run.inventory.find((item) => item.id === state.run.equippedWeaponId)) {
+      state.run.equippedWeaponId = null;
       }
 
       if (!Array.isArray(state.run.runes)) {
@@ -1845,6 +2520,13 @@
         state.run.quests = [];
       }
 
+      if (!state.run.weeklyQuest) {
+        ensureWeeklyQuest();
+      }
+      if (!state.run.chainQuest) {
+        ensureChainQuest();
+      }
+
       spawnMonster(state.run.isBoss, state.run.monsterTypeId);
       if (typeof state.run.monsterMaxHp === "number") {
         state.run.monsterMaxHp = Math.max(1, state.run.monsterMaxHp);
@@ -1854,14 +2536,21 @@
       }
       updateHpUi();
       ensureQuests();
+      ensureWeeklyQuest();
+      ensureChainQuest();
     } catch (error) {
       spawnMonster(false);
       ensureQuests();
+      ensureWeeklyQuest();
+      ensureChainQuest();
       refreshRuneShop(true);
     }
   }
 
   function resetGame() {
+    if (testMode) {
+      return;
+    }
     const ok = window.confirm("Reset all progress?");
     if (!ok) {
       return;
@@ -1919,6 +2608,194 @@
     });
   }
 
+  function toggleDevMode() {
+    devMode = !devMode;
+    updateDevUi();
+  }
+
+  function openSaveModal() {
+    el.saveText.value = JSON.stringify(
+      {
+        meta: state.meta,
+        run: state.run,
+        upgrades: state.upgrades,
+        session: state.session,
+        sessionHistory: state.sessionHistory,
+        log: state.log,
+      },
+      null,
+      2
+    );
+    el.saveModal.classList.add("active");
+  }
+
+  function applySaveImport() {
+    if (testMode) {
+      return;
+    }
+    const ok = window.confirm("Import save data? This will replace current progress.");
+    if (!ok) {
+      return;
+    }
+    try {
+      const data = JSON.parse(el.saveText.value);
+      applyImportedData(data);
+      saveGame();
+      updateUi();
+    } catch (error) {
+      addLog("Import failed: invalid JSON.");
+    }
+  }
+
+  function copySaveText() {
+    el.saveText.select();
+    document.execCommand("copy");
+    addLog("Save data copied.");
+  }
+
+  function resetWeakPoint() {
+    if (weakPointTimeout) {
+      clearTimeout(weakPointTimeout);
+    }
+    el.weakPoint.classList.remove("active");
+    scheduleWeakPoint();
+  }
+
+  function scheduleWeakPoint() {
+    const delay = randInt(WEAK_POINT_MIN_MS, WEAK_POINT_MAX_MS);
+    weakPointTimeout = setTimeout(() => {
+      placeWeakPoint();
+      scheduleWeakPoint();
+    }, delay);
+  }
+
+  function placeWeakPoint() {
+    if (state.run.monsterHp <= 0) {
+      return;
+    }
+    const rect = el.monsterArea.getBoundingClientRect();
+    const size = 26;
+    const x = randInt(10, Math.max(10, rect.width - size - 10));
+    const y = randInt(10, Math.max(10, rect.height - size - 10));
+    el.weakPoint.style.left = `${x}px`;
+    el.weakPoint.style.top = `${y}px`;
+    el.weakPoint.classList.add("active");
+  }
+
+  function handleWeakPointClick(event) {
+    event.stopPropagation();
+    el.weakPoint.classList.remove("active");
+    handleClick(true);
+  }
+
+  function runUiTests() {
+    testMode = true;
+    const snapshot = JSON.parse(JSON.stringify(state));
+
+    state.run.gold = 999999;
+    state.run.zone = 10;
+    if (state.run.inventory.length === 0) {
+      state.run.inventory.push(
+        generateEquipmentItem("Common", "weapon", "greenfields"),
+        generateEquipmentItem("Common", "relic", "greenfields")
+      );
+    }
+    state.run.equippedWeaponId = state.run.inventory.find((i) => i.slot === "weapon")?.id || null;
+    state.run.equippedRelicId = state.run.inventory.find((i) => i.slot === "relic")?.id || null;
+    if (state.run.runes.length === 0) {
+      state.run.runes.push(generateRune(), generateRune());
+    }
+    state.run.equippedRuneId = state.run.runes[0]?.id || null;
+    if (state.run.runeShop.length === 0) {
+      state.run.runeShop = [generateRune(), generateRune(), generateRune(), generateRune()];
+    }
+    if (state.run.quests.length === 0) {
+      state.run.quests = [createQuest(), createQuest(), createQuest()];
+    }
+    state.run.quests[0].completed = true;
+    ensureWeeklyQuest();
+    if (state.run.weeklyQuest) {
+      state.run.weeklyQuest.completed = true;
+    }
+
+    updateUi();
+
+    const checks = [
+      "[data-test='tab-shop']",
+      "[data-test='tab-inventory']",
+      "[data-test='tab-quests']",
+      "[data-test='tab-runes']",
+      "[data-test='tab-achievements']",
+      "[data-test='tab-collections']",
+      "[data-test='tab-log']",
+      "[data-test='buy-click']",
+      "[data-test='buy-auto']",
+      "[data-test='buy-crit']",
+      "[data-test='buy-multi']",
+      "[data-test='skill-activate']",
+      "[data-test='prestige']",
+      "[data-test='unequip-weapon']",
+      "[data-test='unequip-relic']",
+      "[data-test='unequip-rune']",
+      "[data-test='rune-refresh']",
+      "[data-test='export']",
+      "[data-test='import']",
+      "[data-test='run-tests']",
+    ];
+
+    const results = [];
+    checks.forEach((selector) => {
+      const element = document.querySelector(selector);
+      if (!element) {
+        results.push(`FAIL: Missing ${selector}`);
+        return;
+      }
+      if (element.disabled) {
+        results.push(`FAIL: Disabled ${selector}`);
+        return;
+      }
+      try {
+        element.click();
+        results.push(`PASS: ${selector}`);
+      } catch (error) {
+        results.push(`FAIL: Error ${selector}`);
+      }
+    });
+
+    const dynamicChecks = [
+      { selector: "[data-test='equip-item']", label: "equip-item" },
+      { selector: "[data-test='quest-claim']", label: "quest-claim" },
+      { selector: "[data-test='rune-buy']", label: "rune-buy" },
+      { selector: "[data-test='rune-socket']", label: "rune-socket" },
+    ];
+
+    dynamicChecks.forEach((check) => {
+      const element = document.querySelector(check.selector);
+      if (!element) {
+        results.push(`FAIL: Missing ${check.label}`);
+        return;
+      }
+      if (element.disabled) {
+        results.push(`FAIL: Disabled ${check.label}`);
+        return;
+      }
+      try {
+        element.click();
+        results.push(`PASS: ${check.label}`);
+      } catch (error) {
+        results.push(`FAIL: Error ${check.label}`);
+      }
+    });
+
+    const passCount = results.filter((line) => line.startsWith("PASS")).length;
+    const failCount = results.filter((line) => line.startsWith("FAIL")).length;
+    el.testResults.textContent = `UI Tests: ${passCount} passed, ${failCount} failed\n${results.join("\n")}`;
+
+    state = snapshot;
+    testMode = false;
+    updateUi();
+  }
+
   function startIntervals() {
     if (dpsInterval) {
       clearInterval(dpsInterval);
@@ -1929,6 +2806,7 @@
 
     dpsInterval = setInterval(() => {
       handleAutoDps();
+      maybeResetChain();
       updateUi();
     }, DPS_TICK_MS);
 
@@ -1943,7 +2821,8 @@
     applyOfflineProgress();
     updateUi();
 
-    el.monster.addEventListener("click", handleClick);
+    el.monster.addEventListener("click", () => handleClick(false));
+    el.weakPoint.addEventListener("click", handleWeakPointClick);
     el.buyClick.addEventListener("click", () => buyUpgrade("click"));
     el.buyAuto.addEventListener("click", () => buyUpgrade("auto"));
     el.buyCrit.addEventListener("click", () => buyUpgrade("crit"));
@@ -1960,12 +2839,15 @@
       const enabled = document.body.classList.contains("compact");
       setCompactMode(!enabled);
     });
-    el.unequip.addEventListener("click", unequipRelic);
+    el.sessionReport.addEventListener("click", showSessionReport);
+    el.devToggle.addEventListener("click", toggleDevMode);
+    el.unequipWeapon.addEventListener("click", unequipWeapon);
+    el.unequipRelic.addEventListener("click", unequipRelic);
     el.unequipRune.addEventListener("click", removeRune);
     el.inventoryList.addEventListener("click", (event) => {
       const target = event.target;
       if (target && target.dataset.equipId) {
-        equipRelic(target.dataset.equipId);
+        equipItem(target.dataset.equipId);
       }
     });
     el.runeShopList.addEventListener("click", (event) => {
@@ -1987,11 +2869,61 @@
         claimQuest(target.dataset.claimId);
       }
     });
+    el.weeklyQuest.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target && target.dataset.claimId) {
+        claimQuest(target.dataset.claimId);
+      }
+    });
     el.reroll.addEventListener("click", rerollQuests);
     el.titleSelect.addEventListener("change", (event) => {
       state.meta.equippedTitle = event.target.value;
       updateUi();
     });
+    el.devGold.addEventListener("click", () => {
+      if (!devMode) {
+        return;
+      }
+      state.run.gold += 10000;
+      updateUi();
+    });
+    el.devZone.addEventListener("click", () => {
+      if (!devMode) {
+        return;
+      }
+      state.run.zone += 1;
+      spawnMonster(false);
+      updateUi();
+    });
+    el.devBoss.addEventListener("click", () => {
+      if (!devMode) {
+        return;
+      }
+      spawnMonster(true);
+      updateUi();
+    });
+    el.exportSave.addEventListener("click", () => {
+      if (!devMode) {
+        return;
+      }
+      openSaveModal();
+    });
+    el.importSave.addEventListener("click", () => {
+      if (!devMode) {
+        return;
+      }
+      el.saveModal.classList.add("active");
+    });
+    el.runTests.addEventListener("click", () => {
+      if (!devMode) {
+        return;
+      }
+      runUiTests();
+    });
+    el.saveCopy.addEventListener("click", copySaveText);
+    el.saveApply.addEventListener("click", applySaveImport);
+    el.saveClose.addEventListener("click", () => el.saveModal.classList.remove("active"));
+    el.sessionClose.addEventListener("click", () => el.sessionModal.classList.remove("active"));
     el.save.addEventListener("click", () => {
       saveGame();
       updateUi();
@@ -1999,6 +2931,12 @@
     el.reset.addEventListener("click", resetGame);
     el.offlineClose.addEventListener("click", () => {
       el.offlineModal.classList.remove("active");
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "`") {
+        toggleDevMode();
+      }
     });
 
     startIntervals();
