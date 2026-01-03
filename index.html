@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pixel Mercenary Clicker</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="game">
+      <header class="topbar">
+        <div class="stats-row">
+          <div class="stat"><span class="label">Gold</span> <span id="gold">0</span></div>
+          <div class="stat"><span class="label">Honor</span> <span id="honor">0</span></div>
+          <div class="stat"><span class="label">DMG Mult</span> <span id="dmg-mult">1.00x</span></div>
+          <div class="stat"><span class="label">Zone</span> <span id="zone">1</span></div>
+          <div class="stat"><span class="label">Kills</span> <span id="kills">0</span></div>
+          <div class="stat"><span class="label">Title</span> <span id="title-display">None</span></div>
+          <div class="stat boss" id="boss-indicator">Boss</div>
+        </div>
+        <div class="header-actions">
+          <button class="small" id="compact-toggle">Compact: Off</button>
+          <button class="small" id="save">Save</button>
+          <button class="small" id="reset">Reset</button>
+          <button class="prestige" id="prestige">Prestige</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel monster-panel">
+          <div class="region-info">
+            <div class="region-name" id="region-name">Greenfields</div>
+            <div class="region-sub" id="region-sub">Breezy fields and soft hills</div>
+          </div>
+          <div class="monster-header">
+            <div>
+              <div class="monster-name" id="monster-name">Forest Goblin</div>
+              <div class="monster-type" id="monster-type">Grunt</div>
+              <div class="chapter-next" id="chapter-next">Chapter boss at zone 10</div>
+            </div>
+            <div class="hp-text" id="hp-text">0 / 0</div>
+          </div>
+          <div class="hp-bar">
+            <div class="hp-fill" id="hp-fill"></div>
+          </div>
+          <div class="event-banner" id="event-banner">
+            <span id="event-name">Event</span>
+            <span id="event-timer">0s</span>
+          </div>
+          <div class="monster-area">
+            <button id="monster" class="monster" aria-label="Monster">
+              <div class="sprite"></div>
+            </button>
+            <div class="floating-layer" id="floating-layer"></div>
+          </div>
+          <div class="hint">Click the monster to attack</div>
+        </section>
+
+        <section class="controls">
+          <div class="tabs" role="tablist">
+            <button class="tab-button is-active" data-tab="shop" role="tab">Shop</button>
+            <button class="tab-button" data-tab="inventory" role="tab">Inventory</button>
+            <button class="tab-button" data-tab="runes" role="tab">Runes</button>
+            <button class="tab-button" data-tab="quests" role="tab">Quests</button>
+            <button class="tab-button" data-tab="achievements" role="tab">Achievements</button>
+            <button class="tab-button" data-tab="log" role="tab">Log</button>
+          </div>
+
+          <div class="tab-panels">
+            <section class="panel tab-panel is-active" data-tab-panel="shop">
+              <div class="stats compact-list">
+                <div class="stat-row"><span>Click Damage</span><span id="click-dmg">1</span></div>
+                <div class="stat-row"><span>Auto DPS</span><span id="auto-dps">0</span></div>
+                <div class="stat-row"><span>Crit Chance</span><span id="crit-chance">0%</span></div>
+                <div class="stat-row"><span>Crit Multiplier</span><span id="crit-multi">1.5x</span></div>
+                <div class="stat-row"><span>Gold Bonus</span><span id="gold-bonus">0%</span></div>
+                <div class="stat-row"><span>Zone Progress</span><span id="zone-progress">0 / 25</span></div>
+              </div>
+              <div class="skill-box">
+                <div class="skill-title" id="skill-title">Power Strike</div>
+                <div class="skill-desc" id="skill-desc">Click damage x3 for 4s</div>
+                <button class="skill" id="skill-activate">Activate</button>
+                <div class="skill-timer" id="skill-timer">Ready</div>
+                <div class="skill-select">
+                  <button class="small" data-skill="power">Power Strike</button>
+                  <button class="small" data-skill="cry">Battle Cry</button>
+                </div>
+              </div>
+              <div class="shop-panel">
+                <h2>Upgrades</h2>
+                <div class="scroll-panel" id="upgrades-scroll">
+                  <div class="upgrade" id="upg-click">
+                    <div class="upgrade-info">
+                      <div class="title">Sword Training</div>
+                      <div class="desc">+1 click damage</div>
+                      <div class="level">Level: <span id="lvl-click">0</span></div>
+                    </div>
+                    <button class="buy" id="buy-click">Buy (<span id="cost-click">0</span>)</button>
+                  </div>
+
+                  <div class="upgrade" id="upg-auto">
+                    <div class="upgrade-info">
+                      <div class="title">Hire Mercenary</div>
+                      <div class="desc">+1 auto DPS</div>
+                      <div class="level">Level: <span id="lvl-auto">0</span></div>
+                    </div>
+                    <button class="buy" id="buy-auto">Buy (<span id="cost-auto">0</span>)</button>
+                  </div>
+
+                  <div class="upgrade" id="upg-crit">
+                    <div class="upgrade-info">
+                      <div class="title">Sharpened Edge</div>
+                      <div class="desc">+2% crit chance (cap 50%)</div>
+                      <div class="level">Level: <span id="lvl-crit">0</span></div>
+                    </div>
+                    <button class="buy" id="buy-crit">Buy (<span id="cost-crit">0</span>)</button>
+                  </div>
+
+                  <div class="upgrade" id="upg-multi">
+                    <div class="upgrade-info">
+                      <div class="title">Heavy Swing</div>
+                      <div class="desc">+0.1 crit multiplier (cap 3.0x)</div>
+                      <div class="level">Level: <span id="lvl-multi">0</span></div>
+                    </div>
+                    <button class="buy" id="buy-multi">Buy (<span id="cost-multi">0</span>)</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel tab-panel" data-tab-panel="inventory">
+              <div class="equip-panel">
+                <h2>Relic Slot</h2>
+                <div class="equipped" id="equipped">
+                  <div class="equipped-name" id="equipped-name">None</div>
+                  <div class="equipped-stat" id="equipped-stat">No bonus</div>
+                  <button id="unequip" class="small">Unequip</button>
+                </div>
+                <div class="rune-slot">
+                  <div class="equipped-name" id="equipped-rune-name">Rune: None</div>
+                  <div class="equipped-stat" id="equipped-rune-stat">No rune socketed</div>
+                  <button id="unequip-rune" class="small">Remove Rune</button>
+                </div>
+                <h3>Inventory</h3>
+                <div class="scroll-panel" id="inventory-list"></div>
+              </div>
+            </section>
+
+            <section class="panel tab-panel runes-panel" data-tab-panel="runes">
+              <div class="rune-shop">
+                <div class="rune-header">
+                  <h2>Rune Shop</h2>
+                  <button id="rune-refresh" class="small">Refresh</button>
+                </div>
+                <div class="scroll-panel" id="rune-shop-list"></div>
+              </div>
+              <div class="rune-inventory">
+                <h2>Rune Pouch</h2>
+                <div class="scroll-panel" id="rune-inventory-list"></div>
+              </div>
+            </section>
+
+            <section class="panel tab-panel" data-tab-panel="quests">
+              <div class="quest-header">
+                <h2>Quests</h2>
+                <button id="reroll" class="small">Reroll</button>
+              </div>
+              <div class="scroll-panel" id="quest-list"></div>
+            </section>
+
+            <section class="panel tab-panel" data-tab-panel="achievements">
+              <div class="achievement-header">
+                <h2>Achievements</h2>
+                <div class="achievement-filters">
+                  <button class="small is-active" data-filter="all">All</button>
+                  <button class="small" data-filter="unlocked">Unlocked</button>
+                  <button class="small" data-filter="locked">Locked</button>
+                </div>
+              </div>
+              <div class="title-select">
+                <label for="title-select">Equip Title</label>
+                <select id="title-select"></select>
+              </div>
+              <div class="scroll-panel" id="achievement-list"></div>
+            </section>
+
+            <section class="panel tab-panel" data-tab-panel="log">
+              <h2>Log</h2>
+              <div class="scroll-panel log-scroll" id="log-list"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal" id="offline-modal">
+      <div class="modal-content">
+        <h2>Welcome Back</h2>
+        <p id="offline-text">While you were away...</p>
+        <button id="offline-close" class="small">Continue</button>
+      </div>
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+</html>
