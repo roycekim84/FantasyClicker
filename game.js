@@ -632,17 +632,55 @@
     return value;
   }
 
+  const missingI18n = new Set();
+  const OPTIONAL_I18N_SELECTORS = new Set(["#tutorial-next", "#tutorial-skip"]);
+
+  function warnMissingI18n(selector) {
+    if (!selector || OPTIONAL_I18N_SELECTORS.has(selector) || missingI18n.has(selector)) {
+      return;
+    }
+    missingI18n.add(selector);
+    console.warn("[i18n] missing element:", selector);
+  }
+
+  function setNodeText(node, key, selector) {
+    if (!node) {
+      warnMissingI18n(selector || key);
+      return;
+    }
+    node.textContent = t(key);
+  }
+
+  function setNodeAttr(node, attr, key, selector) {
+    if (!node) {
+      warnMissingI18n(selector || key);
+      return;
+    }
+    node.setAttribute(attr, t(key));
+  }
+
   function applyI18n() {
     document.querySelectorAll("[data-i18n]").forEach((node) => {
       node.textContent = t(node.dataset.i18n);
     });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+      setNodeAttr(node, "placeholder", node.dataset.i18nPlaceholder, "[data-i18n-placeholder]");
+    });
+    document.querySelectorAll("[data-i18n-title]").forEach((node) => {
+      setNodeAttr(node, "title", node.dataset.i18nTitle, "[data-i18n-title]");
+    });
+    document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+      setNodeAttr(node, "aria-label", node.dataset.i18nAriaLabel, "[data-i18n-aria-label]");
+    });
     document.documentElement.lang = state.ui.lang === "ko" ? "ko" : "en";
-    el.skillSelect.querySelector("[data-skill='power']").textContent = t("ui.skillPower");
-    el.skillSelect.querySelector("[data-skill='cry']").textContent = t("ui.skillCry");
-    el.runeRefresh.textContent = t("ui.refresh");
-    el.reroll.textContent = t("ui.reroll");
-    el.tutorialNext.textContent = t("tutorial.next");
-    el.tutorialSkip.textContent = t("tutorial.skip");
+    const skillPower = el.skillSelect ? el.skillSelect.querySelector("[data-skill='power']") : null;
+    const skillCry = el.skillSelect ? el.skillSelect.querySelector("[data-skill='cry']") : null;
+    setNodeText(skillPower, "ui.skillPower", "[data-skill='power']");
+    setNodeText(skillCry, "ui.skillCry", "[data-skill='cry']");
+    setNodeText(el.runeRefresh, "ui.refresh", "#rune-refresh");
+    setNodeText(el.reroll, "ui.reroll", "#reroll");
+    setNodeText(el.tutorialNext, "tutorial.next", "#tutorial-next");
+    setNodeText(el.tutorialSkip, "tutorial.skip", "#tutorial-skip");
     updateSettingsButtons();
     dirty.i18n = false;
   }
