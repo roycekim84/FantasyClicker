@@ -1,4 +1,4 @@
-# Pixel Mercenary Clicker (v0.6)
+# Pixel Mercenary Clicker (v0.71)
 
 A small, local-only medieval fantasy clicker with a pixel-art vibe. Click monsters to earn gold, collect gear and runes, complete quests, and prestige for Honor.
 
@@ -17,6 +17,33 @@ Open `index.html` in any modern browser. No build step or dependencies.
 ## v0.61 UI
 
 - Inventory tab compacted into a 2-column equipped summary with an embedded rune line for clearer, denser layout.
+
+## v0.71 UI/UX
+
+- Runes are managed only in the Runes tab; Inventory focuses on gear only.
+- New Sell actions for gear and runes, plus clearer equip/socket action bars.
+
+## v0.72.1 Hotfix
+
+- Restores a stable Runes tab layout and keeps rune management strictly within the Runes tab.
+
+## v0.73 UI
+
+- Rune Shop now uses icon tiles with hover tooltips and a focused purchase bar.
+- Rune Fusion removed from UI and logic.
+
+## v0.73.5 UI
+
+- Rune Shop compact row with small tiles, no fusion leftovers, and no reserved height.
+
+## v0.8 Highlights
+
+- Logs include timestamps and show as a compact list with higher history cap.
+- Chapter theming adds subtle UI color shifts and a chapter badge.
+- Inventory slots can be expanded with gold (starting at 10).
+- Gear can roll a small affix bonus; tooltips show the affix line.
+- New chapter reward options: refresh discount, rune rare chance, sell bonus.
+- Selling is instant (no confirm).
 
 ## v0.50.1 Hotfix
 

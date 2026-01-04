@@ -14,6 +14,7 @@
           <div class="stat"><span class="label" data-i18n="ui.honor"></span> <span id="honor">0</span></div>
           <div class="stat"><span class="label" data-i18n="ui.dmgMult"></span> <span id="dmg-mult">1.00x</span></div>
           <div class="stat"><span class="label" data-i18n="ui.zone"></span> <span id="zone">1</span></div>
+          <div class="stat chapter"><span class="label" data-i18n="ui.chapter"></span> <span id="chapter-badge">1</span></div>
           <div class="stat"><span class="label" data-i18n="ui.kills"></span> <span id="kills">0</span></div>
           <div class="stat"><span class="label" data-i18n="ui.title"></span> <span id="title-display">-</span></div>
           <div class="stat boss" id="boss-indicator"></div>
@@ -41,6 +42,7 @@
             <div>
               <div class="monster-name" id="monster-name">-</div>
               <div class="monster-type" id="monster-type">-</div>
+              <div class="boss-pattern" id="boss-pattern">-</div>
               <div class="chapter-next" id="chapter-next">-</div>
             </div>
             <div class="hp-text" id="hp-text">0 / 0</div>
@@ -155,6 +157,7 @@
                       <div class="equip-tile" id="equipped-weapon-tile"></div>
                       <div class="slot-text">
                         <div class="equipped-name" id="equipped-weapon-name">-</div>
+                        <div class="equipped-state" id="equipped-weapon-state">-</div>
                         <div class="equipped-stat" id="equipped-weapon-stat">-</div>
                       </div>
                     </div>
@@ -168,49 +171,73 @@
                       <div class="equip-tile" id="equipped-relic-tile"></div>
                       <div class="slot-text">
                         <div class="equipped-name" id="equipped-relic-name">-</div>
+                        <div class="equipped-state" id="equipped-relic-state">-</div>
                         <div class="equipped-stat" id="equipped-relic-stat">-</div>
-                        <div class="rune-line">
-                          <div class="equip-tile" id="equipped-rune-tile"></div>
-                          <div class="rune-text">
-                            <div class="rune-pill" id="equipped-rune-name">-</div>
-                            <div class="rune-stat" id="equipped-rune-stat">-</div>
-                          </div>
-                        </div>
                       </div>
                     </div>
                     <div class="slot-actions">
                       <button id="unequip-relic" class="small" data-action="unequip-relic" data-test="unequip-relic" data-i18n="ui.unequip"></button>
-                      <button id="unequip-rune" class="small" data-action="unequip-rune" data-test="unequip-rune" data-i18n="ui.removeRune"></button>
+                      <button id="manage-runes" class="small" data-action="goto-runes" data-i18n="ui.manageRunes"></button>
                     </div>
                   </div>
                 </div>
-                <div class="inventory-title" data-i18n="ui.inventory"></div>
+                <div class="inventory-controls">
+                  <div class="inventory-title" data-i18n="ui.inventory"></div>
+                  <div class="inventory-expand">
+                    <div class="inventory-slots" id="inventory-slots">-</div>
+                    <button id="inventory-expand" class="small" data-action="expand-inventory"></button>
+                  </div>
+                  <div class="action-bar" id="inventory-action">
+                    <div class="action-label" id="inventory-selected">-</div>
+                    <div class="action-buttons">
+                      <button id="inventory-equip" class="small" data-action="equip-selected-item" data-i18n="btn.equip"></button>
+                      <button id="inventory-sell" class="small danger" data-action="sell-selected-item" data-i18n="btn.sell"></button>
+                    </div>
+                  </div>
+                </div>
                 <div class="scrollbox">
                   <div class="scroll-panel grid" id="inventory-list"></div>
                 </div>
               </div>
             </section>
 
-            <section class="panel tab-panel runes-panel" data-tab-panel="runes" id="runes-panel">
-              <div class="rune-section">
-                <div class="rune-header">
-                  <h2 data-i18n="ui.runeShop"></h2>
-                  <button id="rune-refresh" class="small" data-action="refresh-rune-shop" data-test="rune-refresh"></button>
+            <section class="panel tab-panel runes-panel" data-tab-panel="runes" id="tab-runes">
+              <div class="runes-shop">
+                <div class="runes-shop__header">
+                  <div class="runes-shop__title" data-i18n="ui.runeShop"></div>
+                  <button id="rune-refresh" class="small" data-action="runes-refresh" data-test="rune-refresh"></button>
                 </div>
-                <div class="scrollbox">
-                  <div class="scroll-panel rune-offer-grid" id="rune-shop-list"></div>
+                <div class="runes-shop__row" id="runeShopRow"></div>
+                <div class="runes-shop__purchasebar" id="runeShopPurchaseBar">
+                  <div class="purchase-summary">
+                    <div class="purchase-label" data-i18n="runes.shop.selectOffer"></div>
+                    <div class="purchase-name" id="rune-offer-selected">-</div>
+                  </div>
+                  <button id="rune-offer-buy" class="small buy" data-action="rune-offer-buy" data-test="rune-buy" data-i18n="runes.shop.purchase"></button>
                 </div>
               </div>
               <div class="rune-section">
                 <div class="rune-header">
                   <h2 data-i18n="ui.runePouch"></h2>
                 </div>
-                <div class="rune-fusion">
-                  <div class="rune-header">
-                    <h3 data-i18n="ui.runeFusion"></h3>
-                    <button id="fuse-runes" class="small" data-action="fuse-runes"></button>
+                <div class="rune-status" id="rune-status">-</div>
+                <div class="rune-slot-card" id="rune-socketed-card">
+                  <div class="rune-slot-title" data-i18n="ui.socketed"></div>
+                  <div class="rune-slot-body">
+                    <div class="equip-tile" id="socketed-rune-tile"></div>
+                    <div class="rune-slot-text">
+                      <div class="rune-slot-name" id="socketed-rune-name">-</div>
+                      <div class="rune-slot-stat" id="socketed-rune-stat">-</div>
+                    </div>
+                    <button id="unequip-rune" class="small" data-action="unequip-rune" data-test="unequip-rune" data-i18n="btn.unsocket"></button>
                   </div>
-                  <div class="stat" id="fusion-status">-</div>
+                </div>
+                <div class="action-bar" id="rune-action">
+                  <div class="action-label" id="rune-selected">-</div>
+                  <div class="action-buttons">
+                    <button id="rune-socket" class="small" data-action="socket-selected-rune" data-i18n="btn.socket"></button>
+                    <button id="rune-sell" class="small danger" data-action="sell-selected-rune" data-i18n="btn.sell"></button>
+                  </div>
                 </div>
                 <div class="scrollbox">
                   <div class="scroll-panel grid" id="rune-inventory-list"></div>
@@ -269,6 +296,10 @@
 
             <section class="panel tab-panel" data-tab-panel="settings" id="settings-panel">
               <h2 data-i18n="tabs.settings"></h2>
+              <div class="settings-meta">
+                <div class="settings-label" data-i18n="ui.metaBonuses"></div>
+                <div class="settings-meta-list" id="meta-bonus-list">-</div>
+              </div>
               <div class="settings-row">
                 <div class="settings-label" data-i18n="settings.language"></div>
                 <div class="settings-controls">
@@ -318,10 +349,17 @@
 
             <section class="panel tab-panel" data-tab-panel="log">
               <h2 data-i18n="tabs.log"></h2>
-              <div class="scroll-panel log-scroll" id="log-list"></div>
+              <ul class="scroll-panel log-scroll log-list" id="log-list"></ul>
               <div class="dev-panel" id="dev-panel">
                 <h2 data-i18n="ui.devPanel"></h2>
                 <div class="dev-info" id="dev-info"></div>
+                <div class="dev-errors">
+                  <div class="dev-errors-header">
+                    <div data-i18n="ui.errors"></div>
+                    <button class="small" id="copy-errors" data-i18n="ui.copy"></button>
+                  </div>
+                  <div class="dev-errors-list" id="dev-errors"></div>
+                </div>
                 <div class="dev-actions">
                   <button class="small" id="dev-gold" data-test="dev-gold" data-i18n="ui.devGold"></button>
                   <button class="small" id="dev-zone" data-test="dev-zone" data-i18n="ui.devZone"></button>
@@ -368,6 +406,13 @@
           <button id="save-apply" class="small" data-i18n="ui.import"></button>
           <button id="save-close" class="small" data-i18n="ui.close"></button>
         </div>
+      </div>
+    </div>
+    <div class="modal" id="chapter-modal">
+      <div class="modal-content chapter-content">
+        <h2 data-i18n="ui.chapterRewardTitle"></h2>
+        <div class="chapter-sub" id="chapter-reward-sub">-</div>
+        <div class="chapter-options" id="chapter-options"></div>
       </div>
     </div>
     <div class="tooltip" id="tooltip"></div>
