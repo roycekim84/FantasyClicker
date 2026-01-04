@@ -89,6 +89,7 @@
 
   validateContent();
 
+
   const SAVE_KEY = "pixel-mercenary-clicker-v0.1";
   const UI_COMPACT_KEY = "fc_compact";
   const UI_LANG_KEY = "fc_lang";
@@ -120,6 +121,29 @@
   const WEAK_POINT_MAX_MS = 2200;
   const BOSS_PATTERNS = ["guard", "evasion", "enrage"];
   const CHAPTER_ZONES = [10, 20, 30, 40, 50];
+  const SPRITE_GRID = 8;
+  const MONSTER_SPRITES = {
+    "greenfields": [1, 0],
+    "ashen-ruins": [6, 0],
+    "crypt-depths": [0, 2],
+    "frost-peaks": [0, 4],
+    "void-gate": [2, 4],
+  };
+  const MERC_GRADE_WEIGHTS = [
+    { grade: "F", weight: 55 },
+    { grade: "E", weight: 28 },
+    { grade: "D", weight: 12 },
+    { grade: "C", weight: 4 },
+    { grade: "B", weight: 1 },
+  ];
+  const MERC_CLASSES = ["striker", "rapid", "support", "breaker"];
+  const MERC_BASE_COST = { F: 30, E: 45, D: 70, C: 110, B: 180 };
+  const MERC_BASE_HIT = { F: 3, E: 5, D: 8, C: 12, B: 18 };
+  const MERC_BASE_ATTACK_MS = { striker: 1600, rapid: 1000, support: 1500, breaker: 1400 };
+  const MERC_SKILL_COOLDOWN_MS = { striker: 12000, rapid: 0, support: 20000, breaker: 0 };
+  const MERC_SUPPORT_DURATION_MS = 5000;
+  const MERC_MAX_FLOATERS = 20;
+  const UPGRADE_MAX_BUY = 10000;
 
   const MONSTER_TYPES = CONTENT.monsters.types;
   const REGIONS = CONTENT.regions;
@@ -327,6 +351,7 @@
     unequipRelic: document.getElementById("unequip-relic"),
     unequipRune: document.getElementById("unequip-rune"),
     manageRunes: document.getElementById("manage-runes"),
+    mercBar: document.getElementById("merc-bar"),
     inventorySelected: document.getElementById("inventory-selected"),
     inventoryEquip: document.getElementById("inventory-equip"),
     inventorySell: document.getElementById("inventory-sell"),
@@ -342,9 +367,21 @@
     socketedRuneName: document.getElementById("socketed-rune-name"),
     socketedRuneStat: document.getElementById("socketed-rune-stat"),
     runeSelected: document.getElementById("rune-selected"),
+    runeSocketWrap: document.getElementById("rune-socket-wrap"),
     runeSocket: document.getElementById("rune-socket"),
     runeSell: document.getElementById("rune-sell"),
     runeInventoryList: document.getElementById("rune-inventory-list"),
+    mercHire: document.getElementById("merc-hire"),
+    mercOdds: document.querySelector(".merc-odds"),
+    mercSlotRow: document.getElementById("merc-slot-row"),
+    mercAddSlot: document.getElementById("merc-add-slot"),
+    mercRosterList: document.getElementById("merc-roster-list"),
+    mercSelected: document.getElementById("merc-selected"),
+    mercEquip: document.getElementById("merc-equip"),
+    mercUnequip: document.getElementById("merc-unequip"),
+    mercLevel1: document.getElementById("merc-level-1"),
+    mercLevel10: document.getElementById("merc-level-10"),
+    mercLevelMax: document.getElementById("merc-level-max"),
     questList: document.getElementById("quest-list"),
     weeklyQuest: document.getElementById("weekly-quest"),
     weeklyReset: document.getElementById("weekly-reset"),
@@ -388,9 +425,8 @@
     chapterModal: document.getElementById("chapter-modal"),
     chapterOptions: document.getElementById("chapter-options"),
     chapterRewardSub: document.getElementById("chapter-reward-sub"),
-    tutorialBox: document.getElementById("tutorial-box"),
-    tutorialTitle: document.getElementById("tutorial-title"),
-    tutorialText: document.getElementById("tutorial-text"),
+    tutorialToast: document.getElementById("tutorialToast"),
+    tutorialToast: document.getElementById("tutorialToast"),
     tutorialNext: document.getElementById("tutorial-next"),
     tutorialSkip: document.getElementById("tutorial-skip"),
     tooltip: document.getElementById("tooltip"),
@@ -422,6 +458,8 @@
         collections: {},
         chapterClears: {},
         inventoryMaxSlots: BASE_INVENTORY_SLOTS,
+        freeMercHireUsed: false,
+        mercMaxSlots: 3,
         metaBonuses: {
           goldPct: 0,
           bossDamagePct: 0,
@@ -476,6 +514,12 @@
         lastActiveAt: Date.now(),
         comboCount: 0,
         comboLastAt: 0,
+        supportBuffUntil: 0,
+        supportBuffPct: 0,
+      },
+      mercs: {
+        owned: [],
+        equippedIds: [],
       },
       upgrades: {
         click: { level: 0, baseCost: 12 },
@@ -512,6 +556,13 @@
         selectedInventoryItemId: null,
         selectedRuneId: null,
         selectedRuneOfferId: null,
+        selectedMercId: null,
+        upgradeBuyMult: {
+          click: "1",
+          auto: "1",
+          crit: "1",
+          multi: "1",
+        },
       },
     };
   }
@@ -521,6 +572,8 @@
   let autosaveInterval = null;
   let weakPointTimeout = null;
   let autoCarry = 0;
+  let mercFloaters = [];
+  let lastMissLogAt = 0;
   let devMode = false;
   let testMode = false;
   let clickCheckEnabled = false;
@@ -534,6 +587,7 @@
     quests: true,
     achievements: true,
     collections: true,
+    mercs: true,
     i18n: true,
   };
 
@@ -857,8 +911,44 @@
     }
   }
 
+  function getUpgradeCostAtLevel(upgrade, level) {
+    return Math.floor(upgrade.baseCost * Math.pow(1.15, level));
+  }
+
   function getUpgradeCost(upgrade) {
-    return Math.floor(upgrade.baseCost * Math.pow(1.15, upgrade.level));
+    return getUpgradeCostAtLevel(upgrade, upgrade.level);
+  }
+
+  function getUpgradeTotalCost(upgrade, count) {
+    let total = 0;
+    for (let i = 0; i < count; i += 1) {
+      total += getUpgradeCostAtLevel(upgrade, upgrade.level + i);
+    }
+    return total;
+  }
+
+  function getUpgradeCapCount(type) {
+    if (type === "crit") {
+      return Math.max(0, Math.floor((0.5 - state.run.critChanceBase) / 0.02));
+    }
+    if (type === "multi") {
+      return Math.max(0, Math.floor((3.0 - state.run.critMultiplierBase) / 0.1));
+    }
+    return UPGRADE_MAX_BUY;
+  }
+
+  function getUpgradeAffordableCount(upgrade, maxCount) {
+    let total = 0;
+    let count = 0;
+    while (count < maxCount) {
+      const cost = getUpgradeCostAtLevel(upgrade, upgrade.level + count);
+      if (total + cost > state.run.gold) {
+        break;
+      }
+      total += cost;
+      count += 1;
+    }
+    return { count, total };
   }
 
   function getMonsterType(id) {
@@ -926,6 +1016,7 @@
     el.bossIndicator.classList.toggle("active", isBoss || chapter);
     el.bossIndicator.textContent = chapter ? t("ui.chapterBoss") : t("ui.boss");
     updateRegionUi();
+    updateMonsterSprite();
     updateHpUi();
     resetWeakPoint();
     if (isBoss) {
@@ -935,6 +1026,10 @@
     } else {
       state.run.currentBossPattern = null;
     }
+  }
+
+  function updateMonsterSprite() {
+    // PNG skin mode does not use sprite sheets; keep placeholder monster only.
   }
 
   function updateRegionUi() {
@@ -1135,6 +1230,17 @@
     return event;
   }
 
+  function getSupportBuffPct() {
+    if (!state.run.supportBuffUntil || Date.now() > state.run.supportBuffUntil) {
+      if (state.run.supportBuffPct) {
+        state.run.supportBuffPct = 0;
+        state.run.supportBuffUntil = 0;
+      }
+      return 0;
+    }
+    return state.run.supportBuffPct || 0;
+  }
+
   function getComboBonusPercent() {
     const now = Date.now();
     if (state.run.comboCount > 0 && now - state.run.comboLastAt > COMBO_WINDOW_MS) {
@@ -1177,8 +1283,14 @@
     const event = includeEvent ? getEventState() : null;
     const comboBonus = getComboBonusPercent();
     const base = Math.max(1, state.run.clickDamageBase + equip.click);
+    const supportPct = getSupportBuffPct();
     const clickPct =
-      1 + rune.clickPct / 100 + meta.clickPct / 100 + comboBonus / 100 + (event && event.id === "frenzy" ? 1 : 0);
+      1 +
+      rune.clickPct / 100 +
+      meta.clickPct / 100 +
+      comboBonus / 100 +
+      supportPct / 100 +
+      (event && event.id === "frenzy" ? 1 : 0);
     const skillMult = includeSkill && state.run.skills.selected === "power" && isSkillActive("power") ? 3 : 1;
     return Math.floor(base * clickPct * getHonorMultiplier() * skillMult);
   }
@@ -1611,18 +1723,17 @@
       return;
     }
     const effectiveAuto = getEffectiveAutoDps(true);
-    if (effectiveAuto <= 0 || state.run.monsterHp <= 0) {
-      return;
+    if (effectiveAuto > 0 && state.run.monsterHp > 0) {
+      const tickDamage = effectiveAuto / (1000 / DPS_TICK_MS);
+      autoCarry += tickDamage;
+      const intDamage = Math.floor(autoCarry);
+      if (intDamage >= 1) {
+        const damage = Math.floor(intDamage * getBossDamageMultiplier() * getTypeDamageMultiplier());
+        dealDamage(damage, "");
+        autoCarry -= intDamage;
+      }
     }
-
-    const tickDamage = effectiveAuto / (1000 / DPS_TICK_MS);
-    autoCarry += tickDamage;
-    const intDamage = Math.floor(autoCarry);
-    if (intDamage >= 1) {
-      const damage = Math.floor(intDamage * getBossDamageMultiplier() * getTypeDamageMultiplier());
-      dealDamage(damage, "");
-      autoCarry -= intDamage;
-    }
+    handleMercCombat();
   }
 
   function getSkillCooldown(skillId) {
@@ -1695,6 +1806,169 @@
     return glyph !== `rune.glyph.${effectId}` ? glyph : effectId.slice(0, 1).toUpperCase();
   }
 
+  function getItemIconClass(item) {
+    const rarity = String(item.rarity || "common").toLowerCase();
+    if (item.slot === "weapon") {
+      return `icon-weapon-${rarity}`;
+    }
+    return `icon-relic-${rarity}`;
+  }
+
+  function getRuneIconClass(rune) {
+    const effectId = rune.effect || rune.effectId;
+    const map = {
+      boss: "icon-rune-boss",
+      greed: "icon-rune-greed",
+      precision: "icon-rune-precision",
+      swiftness: "icon-rune-swiftness",
+      fury: "icon-rune-fury",
+      tinker: "icon-rune-tinker",
+    };
+    return map[effectId] || "icon-rune-generic";
+  }
+
+  function getMercIconClass(merc) {
+    const cls = merc.classId || "striker";
+    return `icon-merc-${cls}`;
+  }
+
+  function setTileIcon(node, iconClass, extraClass = "tile-icon") {
+    if (!node) {
+      return;
+    }
+    node.textContent = "";
+    const icon = document.createElement("div");
+    icon.className = `${extraClass} ${iconClass}`.trim();
+    node.appendChild(icon);
+  }
+
+  function normalizeMerc(merc) {
+    if (!merc || typeof merc !== "object") {
+      return null;
+    }
+    const grade = String(merc.grade || "F").toUpperCase();
+    const safeGrade = MERC_GRADE_WEIGHTS.find((entry) => entry.grade === grade)?.grade || "F";
+    const classId = merc.classId || merc.class || MERC_CLASSES[0];
+    const safeClass = MERC_CLASSES.includes(classId) ? classId : MERC_CLASSES[0];
+    return {
+      id: merc.id || `merc-${Date.now()}-${randInt(1000, 9999)}`,
+      grade: safeGrade,
+      classId: safeClass,
+      level: Math.max(0, Math.floor(merc.level || 0)),
+      nextAttackAt: Number.isFinite(merc.nextAttackAt) ? merc.nextAttackAt : 0,
+      nextSkillAt: Number.isFinite(merc.nextSkillAt) ? merc.nextSkillAt : 0,
+    };
+  }
+
+  function getMercName(merc) {
+    const grade = t(`merc.grade.${merc.grade.toLowerCase()}`);
+    const cls = t(`merc.class.${merc.classId}`);
+    return `${grade} ${cls}`.trim();
+  }
+
+  function getMercGlyph(merc) {
+    const cls = merc.classId || "striker";
+    return cls.slice(0, 1).toUpperCase();
+  }
+
+  function getMercBasicHit(merc) {
+    const grade = (merc.grade || "F").toUpperCase();
+    const level = Math.max(1, Math.floor(merc.level || 1));
+    const base = MERC_BASE_HIT[grade] || MERC_BASE_HIT.F;
+    return Math.max(1, Math.floor(base * (1 + 0.12 * (level - 1))));
+  }
+
+  function getMercBasicIntervalSec(merc) {
+    const ms = MERC_BASE_ATTACK_MS[merc.classId] || 1000;
+    const sec = ms / 1000;
+    return Math.max(0.5, sec);
+  }
+
+  function getMercIntervalMs(merc) {
+    return Math.floor(getMercBasicIntervalSec(merc) * 1000);
+  }
+
+  function getMercBasicDps(merc) {
+    const hit = getMercBasicHit(merc);
+    const sec = getMercBasicIntervalSec(merc);
+    return hit / sec;
+  }
+
+  function getMercDisplayBasicText(merc) {
+    const hit = getMercBasicHit(merc);
+    const interval = getMercBasicIntervalSec(merc);
+    const dps = getMercBasicDps(merc);
+    return {
+      hitText: formatNumber(hit),
+      intervalText: formatSeconds(interval * 1000),
+      dpsText: formatNumber(Number(dps.toFixed(1))),
+    };
+  }
+
+  function getMercSkillCooldownMs(merc) {
+    return MERC_SKILL_COOLDOWN_MS[merc.classId] || 0;
+  }
+
+  function getMercSkillDamage(merc) {
+    if (merc.classId === "striker") {
+      return Math.floor(getMercBasicHit(merc) * 6);
+    }
+    return 0;
+  }
+
+  function getMercBossBonusPct(merc) {
+    return merc.classId === "breaker" ? 40 : 0;
+  }
+
+  function formatSeconds(ms) {
+    if (!ms) {
+      return "-";
+    }
+    const value = ms / 1000;
+    return value % 1 === 0 ? `${value.toFixed(0)}s` : `${value.toFixed(1)}s`;
+  }
+
+  function buildMercTooltip(merc) {
+    const gradeLabel = t(`merc.grade.${merc.grade.toLowerCase()}`);
+    const classLabel = t(`merc.class.${merc.classId}`);
+    const basic = getMercDisplayBasicText(merc);
+    const cooldown = getMercSkillCooldownMs(merc);
+    const lines = [
+      getMercName(merc),
+      `${t("ui.mercGrade")}: ${gradeLabel}`,
+      `${t("ui.mercClass")}: ${classLabel}`,
+      `${t("ui.mercLevel")}: ${formatNumber(merc.level)}`,
+    ];
+    lines.push(`${t("ui.mercBasicHit")}: ${basic.hitText}`);
+    lines.push(`${t("ui.mercBasicDps")}: ${basic.dpsText}`);
+    lines.push(`${t("ui.mercInterval")}: ${basic.intervalText}`);
+    if (merc.classId === "striker") {
+      lines.push(
+        `${t("ui.mercSkill")}: ${t("merc.skill.striker")} -${formatNumber(
+          getMercSkillDamage(merc)
+        )} (${t("ui.mercCooldown")} ${formatSeconds(cooldown)})`
+      );
+    } else if (merc.classId === "support") {
+      const buff = getSupportBuffValue(merc);
+      lines.push(
+        `${t("ui.mercSkill")}: ${t("merc.skill.support")} +${buff}% (${t(
+          "ui.mercDuration"
+        )} ${formatSeconds(MERC_SUPPORT_DURATION_MS)}, ${t("ui.mercCooldown")} ${formatSeconds(
+          cooldown
+        )})`
+      );
+    } else if (merc.classId === "breaker") {
+      lines.push(
+        `${t("ui.mercSkill")}: ${t("merc.skill.breaker")} (+${getMercBossBonusPct(merc)}% ${t(
+          "ui.mercBossBonus"
+        )})`
+      );
+    } else {
+      lines.push(`${t("ui.mercSkill")}: ${t("merc.skill.rapid")}`);
+    }
+    return lines.join("\n");
+  }
+
   function getItemGlyph(item) {
     return item.slot === "weapon" ? t("ui.glyphWeapon") : t("ui.glyphRelic");
   }
@@ -1751,7 +2025,7 @@
       el.equippedWeaponName.className = `equipped-name rarity-${weapon.rarity.toLowerCase()}`;
       el.equippedWeaponState.textContent = t("ui.equipped");
       el.equippedWeaponStat.textContent = describeItemStat(weapon);
-      el.equippedWeaponTile.textContent = getItemGlyph(weapon);
+      setTileIcon(el.equippedWeaponTile, getItemIconClass(weapon));
       el.equippedWeaponTile.className = `equip-tile equipped rarity-${weapon.rarity.toLowerCase()}`;
       el.equippedWeaponTile.dataset.tooltip = buildItemTooltip(weapon);
       el.unequipWeapon.disabled = false;
@@ -1772,7 +2046,7 @@
       el.equippedRelicName.className = `equipped-name rarity-${relic.rarity.toLowerCase()}`;
       el.equippedRelicState.textContent = t("ui.equipped");
       el.equippedRelicStat.textContent = describeItemStat(relic);
-      el.equippedRelicTile.textContent = getItemGlyph(relic);
+      setTileIcon(el.equippedRelicTile, getItemIconClass(relic));
       el.equippedRelicTile.className = `equip-tile equipped rarity-${relic.rarity.toLowerCase()}`;
       el.equippedRelicTile.dataset.tooltip = buildItemTooltip(relic);
       el.unequipRelic.disabled = false;
@@ -1811,16 +2085,18 @@
         (item.slot === "weapon" && item.id === state.run.equippedWeaponId) ||
         (item.slot === "relic" && item.id === state.run.equippedRelicId);
       const isSelected = item.id === state.ui.selectedInventoryItemId;
-      const tile = document.createElement("div");
+      const tile = document.createElement("button");
       tile.className = `tile rarity-${item.rarity.toLowerCase()}${isEquipped ? " equipped" : ""}${
         isSelected ? " selected" : ""
       }`;
-      tile.setAttribute("role", "button");
-      tile.dataset.action = "select-item";
+      tile.type = "button";
+      tile.dataset.action = "inv-select";
       tile.dataset.itemId = item.id;
       tile.dataset.test = "equip-item";
       tile.dataset.tooltip = buildItemTooltip(item);
-      tile.textContent = getItemGlyph(item);
+      const icon = document.createElement("div");
+      icon.className = `tile-icon ${getItemIconClass(item)}`;
+      tile.appendChild(icon);
       if (isEquipped) {
         const badge = document.createElement("div");
         badge.className = "badge";
@@ -1830,6 +2106,21 @@
       el.inventoryList.appendChild(tile);
     });
     dirty.inventory = false;
+  }
+
+  function getRuneSocketState() {
+    const selectedId = state.ui.selectedRuneId;
+    const rune = state.run.runes.find((entry) => entry.id === selectedId);
+    if (!rune) {
+      return { can: false, reasonKey: "runes.socket.reason.noRuneSelected" };
+    }
+    if (!getEquippedRelic()) {
+      return { can: false, reasonKey: "runes.socket.reason.noRelicEquipped" };
+    }
+    if (rune.id === state.run.equippedRuneId) {
+      return { can: false, reasonKey: "runes.socket.reason.alreadySocketed" };
+    }
+    return { can: true };
   }
 
   function updateRuneUi() {
@@ -1848,11 +2139,9 @@
       tile.setAttribute("data-offer-id", rune.id);
       tile.dataset.tooltip = buildRuneOfferTooltip(rune);
 
-      const glyph = document.createElement("span");
-      glyph.className = "rune-glyph";
-      glyph.textContent = getRuneGlyph(rune);
-
-      tile.appendChild(glyph);
+      const icon = document.createElement("div");
+      icon.className = `tile-icon ${getRuneIconClass(rune)}`;
+      tile.appendChild(icon);
       el.runeShopList.appendChild(tile);
     });
 
@@ -1872,16 +2161,18 @@
     sortedRunes.forEach((rune) => {
       const isSocketed = rune.id === socketedId;
       const isSelected = state.ui.selectedRuneId === rune.id;
-      const tile = document.createElement("div");
+      const tile = document.createElement("button");
       tile.className = `tile rarity-${rune.rarity.toLowerCase()}${isSocketed ? " equipped" : ""}${
         isSelected ? " selected" : ""
       }`;
-      tile.setAttribute("role", "button");
-      tile.dataset.action = "select-rune";
+      tile.type = "button";
+      tile.dataset.action = "rune-select";
       tile.dataset.runeId = rune.id;
       tile.dataset.test = "rune-socket";
       tile.dataset.tooltip = buildRuneTooltip(rune);
-      tile.textContent = getRuneGlyph(rune);
+      const icon = document.createElement("div");
+      icon.className = `tile-icon ${getRuneIconClass(rune)}`;
+      tile.appendChild(icon);
       if (isSocketed) {
         const badge = document.createElement("div");
         badge.className = "badge";
@@ -1897,7 +2188,7 @@
       el.socketedRuneName.textContent = getRuneName(socketed);
       el.socketedRuneName.className = `rune-slot-name rarity-${socketed.rarity.toLowerCase()}`;
       el.socketedRuneStat.textContent = describeRuneStat(socketed);
-      el.socketedRuneTile.textContent = getRuneGlyph(socketed);
+      setTileIcon(el.socketedRuneTile, getRuneIconClass(socketed));
       el.socketedRuneTile.className = `equip-tile equipped rarity-${socketed.rarity.toLowerCase()}`;
       el.socketedRuneTile.dataset.tooltip = buildRuneTooltip(socketed);
       el.unequipRune.disabled = false;
@@ -1916,17 +2207,22 @@
     if (!selectedRune) {
       state.ui.selectedRuneId = null;
     }
+    const socketState = getRuneSocketState();
     if (state.ui.selectedRuneId) {
       const rune = state.run.runes.find((entry) => entry.id === state.ui.selectedRuneId);
       el.runeSelected.textContent = rune ? getRuneName(rune) : t("ui.none");
-      const hasRelic = Boolean(getEquippedRelic());
       const isSocketed = rune?.id === state.run.equippedRuneId;
-      el.runeSocket.disabled = !rune || !hasRelic || isSocketed;
+      el.runeSocket.disabled = !socketState.can;
       el.runeSell.disabled = !rune || isSocketed;
     } else {
       el.runeSelected.textContent = t("ui.none");
       el.runeSocket.disabled = true;
       el.runeSell.disabled = true;
+    }
+    if (el.runeSocketWrap) {
+      el.runeSocketWrap.dataset.tooltip = socketState.can
+        ? ""
+        : t(socketState.reasonKey || "runes.socket.reason.noRuneSelected");
     }
 
     const refreshCost = state.run.freeRuneRefreshUsed ? getRuneRefreshCost() : 0;
@@ -2228,6 +2524,31 @@
       state.meta.inventoryMaxSlots = BASE_INVENTORY_SLOTS;
       issues.push("inventoryMaxSlots");
     }
+    if (!Number.isFinite(state.meta.mercMaxSlots)) {
+      state.meta.mercMaxSlots = 3;
+      issues.push("mercMaxSlots");
+    }
+    state.meta.mercMaxSlots = clamp(Math.floor(state.meta.mercMaxSlots), 3, 6);
+    if (typeof state.meta.freeMercHireUsed !== "boolean") {
+      state.meta.freeMercHireUsed = false;
+      issues.push("freeMercHireUsed");
+    }
+    if (!state.mercs || typeof state.mercs !== "object") {
+      state.mercs = { owned: [], equippedIds: [] };
+      issues.push("mercs");
+    }
+    if (!Array.isArray(state.mercs.owned)) {
+      state.mercs.owned = [];
+      issues.push("mercsOwned");
+    }
+    if (!Array.isArray(state.mercs.equippedIds)) {
+      state.mercs.equippedIds = [];
+      issues.push("mercsEquipped");
+    }
+    if (state.mercs.equippedIds.length > state.meta.mercMaxSlots) {
+      state.mercs.equippedIds = state.mercs.equippedIds.slice(0, state.meta.mercMaxSlots);
+      issues.push("mercSlots");
+    }
     if (!Array.isArray(state.run.runes)) {
       state.run.runes = [];
       issues.push("runes");
@@ -2235,6 +2556,15 @@
     if (!Array.isArray(state.run.inventory)) {
       state.run.inventory = [];
       issues.push("inventory");
+    }
+    if (!state.ui.upgradeBuyMult || typeof state.ui.upgradeBuyMult !== "object") {
+      state.ui.upgradeBuyMult = {
+        click: "1",
+        auto: "1",
+        crit: "1",
+        multi: "1",
+      };
+      issues.push("upgradeBuyMult");
     }
     return issues;
   }
@@ -2278,8 +2608,12 @@
   }
 
   function updateTutorial() {
+    if (!el.tutorialToast) {
+      return;
+    }
     if (state.ui.tutorialDone) {
-      el.tutorialBox.classList.add("hidden");
+      el.tutorialToast.classList.add("hidden");
+      el.tutorialToast.classList.remove("show");
       return;
     }
 
@@ -2299,12 +2633,11 @@
     }
 
     if (done || state.ui.tutorialDone) {
-      el.tutorialBox.classList.add("hidden");
+      el.tutorialToast.classList.add("hidden");
+      el.tutorialToast.classList.remove("show");
       return;
     }
 
-    el.tutorialBox.classList.remove("hidden");
-    el.tutorialTitle.textContent = t("tutorial.title");
     const steps = [
       t("tutorial.step1"),
       t("tutorial.step2"),
@@ -2316,7 +2649,18 @@
     if (state.ui.tutorialStep === 4 && state.run.gold < 100) {
       text = `${text} ${t("tutorial.moreGold")}`;
     }
-    el.tutorialText.textContent = text;
+    if (!text) {
+      el.tutorialToast.classList.add("hidden");
+      el.tutorialToast.classList.remove("show");
+      return;
+    }
+    el.tutorialToast.textContent = text;
+    el.tutorialToast.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      if (el.tutorialToast) {
+        el.tutorialToast.classList.add("show");
+      }
+    });
   }
 
   function updateSettingsButtons() {
@@ -2351,9 +2695,82 @@
     el.clickCheck.textContent = clickCheckEnabled ? t("ui.clickCheckOn") : t("ui.clickCheckOff");
   }
 
+  function getSelectedUpgradeCount(type, upgrade) {
+    const multRaw = state.ui.upgradeBuyMult?.[type] ?? "1";
+    const capCount = getUpgradeCapCount(type);
+    const affordable = getUpgradeAffordableCount(upgrade, capCount);
+    const maxCount = Math.min(capCount, affordable.count);
+    if (multRaw === "max") {
+      return maxCount;
+    }
+    const mult = Number(multRaw);
+    if (!Number.isFinite(mult) || mult <= 0) {
+      return 0;
+    }
+    return Math.min(mult, maxCount);
+  }
+
+  function updateUpgradeMultipliers() {
+    document.querySelectorAll(".buy-mults[data-upgrade]").forEach((container) => {
+      const type = container.dataset.upgrade;
+      const upgrade = state.upgrades[type];
+      if (!upgrade) {
+        return;
+      }
+      const capCount = getUpgradeCapCount(type);
+      const affordable = getUpgradeAffordableCount(upgrade, capCount);
+      const can10 = affordable.count >= 10;
+      const can100 = affordable.count >= 100;
+      const canMax = affordable.count >= 2;
+      let selected = state.ui.upgradeBuyMult?.[type] ?? "1";
+      if (selected === "10" && !can10) {
+        selected = "1";
+      } else if (selected === "100" && !can100) {
+        selected = "1";
+      } else if (selected === "max" && !canMax) {
+        selected = "1";
+      }
+      if (state.ui.upgradeBuyMult) {
+        state.ui.upgradeBuyMult[type] = selected;
+      }
+
+      container.querySelectorAll(".tiny[data-mult]").forEach((btn) => {
+        const mult = btn.dataset.mult;
+        let show = true;
+        if (mult === "10") {
+          show = can10;
+        } else if (mult === "100") {
+          show = can100;
+        } else if (mult === "max") {
+          show = canMax;
+        }
+        btn.classList.toggle("is-hidden", !show);
+        btn.disabled = !show;
+        btn.classList.toggle("is-active", selected === mult);
+      });
+    });
+  }
+
+  function isTabActive(tab) {
+    const panel = document.querySelector(`[data-tab-panel='${tab}']`);
+    return !!panel && panel.classList.contains("is-active");
+  }
+
+  function setUpgradeMultiplier(type, mult) {
+    if (!state.ui.upgradeBuyMult) {
+      state.ui.upgradeBuyMult = {};
+    }
+    state.ui.upgradeBuyMult[type] = mult;
+    updateUpgradeMultipliers();
+    updateUi();
+  }
+
   function updateUi() {
     if (dirty.i18n) {
       applyI18n();
+      dirty.inventory = true;
+      dirty.runes = true;
+      dirty.mercs = true;
     }
     el.gold.textContent = formatNumber(state.run.gold);
     el.honor.textContent = formatNumber(state.meta.totalHonor);
@@ -2377,20 +2794,27 @@
     el.lvlCrit.textContent = formatNumber(state.upgrades.crit.level);
     el.lvlMulti.textContent = formatNumber(state.upgrades.multi.level);
 
-    const costClick = getUpgradeCost(state.upgrades.click);
-    const costAuto = getUpgradeCost(state.upgrades.auto);
-    const costCrit = getUpgradeCost(state.upgrades.crit);
-    const costMulti = getUpgradeCost(state.upgrades.multi);
+    updateUpgradeMultipliers();
+
+    const clickCount = getSelectedUpgradeCount("click", state.upgrades.click);
+    const autoCount = getSelectedUpgradeCount("auto", state.upgrades.auto);
+    const critCount = getSelectedUpgradeCount("crit", state.upgrades.crit);
+    const multiCount = getSelectedUpgradeCount("multi", state.upgrades.multi);
+
+    const costClick = clickCount > 0 ? getUpgradeTotalCost(state.upgrades.click, clickCount) : getUpgradeCost(state.upgrades.click);
+    const costAuto = autoCount > 0 ? getUpgradeTotalCost(state.upgrades.auto, autoCount) : getUpgradeCost(state.upgrades.auto);
+    const costCrit = critCount > 0 ? getUpgradeTotalCost(state.upgrades.crit, critCount) : getUpgradeCost(state.upgrades.crit);
+    const costMulti = multiCount > 0 ? getUpgradeTotalCost(state.upgrades.multi, multiCount) : getUpgradeCost(state.upgrades.multi);
 
     el.costClick.textContent = formatNumber(costClick);
     el.costAuto.textContent = formatNumber(costAuto);
     el.costCrit.textContent = formatNumber(costCrit);
     el.costMulti.textContent = formatNumber(costMulti);
 
-    el.buyClick.disabled = state.run.gold < costClick;
-    el.buyAuto.disabled = state.run.gold < costAuto;
-    el.buyCrit.disabled = state.run.gold < costCrit || getEffectiveCritChance() >= 0.5;
-    el.buyMulti.disabled = state.run.gold < costMulti || state.run.critMultiplierBase >= 3.0;
+    el.buyClick.disabled = clickCount <= 0;
+    el.buyAuto.disabled = autoCount <= 0;
+    el.buyCrit.disabled = critCount <= 0 || getEffectiveCritChance() >= 0.5;
+    el.buyMulti.disabled = multiCount <= 0 || state.run.critMultiplierBase >= 3.0;
 
     updateComboUi();
     updateSkillUi();
@@ -2404,11 +2828,14 @@
     updateTutorial();
     updateRuneAffordability();
     const newAch = checkAchievements();
-    if (dirty.inventory) {
+    if (dirty.inventory || isTabActive("inventory")) {
       updateInventoryUi();
     }
     if (dirty.runes) {
       updateRuneUi();
+    }
+    if (dirty.mercs || isTabActive("mercs")) {
+      updateMercUi();
     }
     if (dirty.quests) {
       updateQuestUi();
@@ -2422,37 +2849,45 @@
   }
 
   function buyUpgrade(type) {
+    const upgrade = state.upgrades[type];
+    const count = getSelectedUpgradeCount(type, upgrade);
+    if (count <= 0) {
+      return;
+    }
+    buyUpgradeBulk(type, count);
+  }
+
+  function buyUpgradeBulk(type, count) {
     if (testMode) {
       return;
     }
     const upgrade = state.upgrades[type];
-    const cost = getUpgradeCost(upgrade);
+    const totalCost = getUpgradeTotalCost(upgrade, count);
 
-    if (state.run.gold < cost) {
+    if (state.run.gold < totalCost || count <= 0) {
       return;
     }
 
-    if (type === "crit" && getEffectiveCritChance() >= 0.5) {
-      return;
-    }
-
-    if (type === "multi" && state.run.critMultiplierBase >= 3.0) {
-      return;
-    }
-
-    state.run.gold -= cost;
-    upgrade.level += 1;
+    state.run.gold -= totalCost;
+    upgrade.level += count;
 
     if (type === "click") {
-      state.run.clickDamageBase += 1;
+      state.run.clickDamageBase += count;
     } else if (type === "auto") {
-      state.run.autoDpsBase += 1;
+      state.run.autoDpsBase += count;
     } else if (type === "crit") {
-      state.run.critChanceBase = clamp(state.run.critChanceBase + 0.02, 0, 0.5);
+      state.run.critChanceBase = clamp(state.run.critChanceBase + 0.02 * count, 0, 0.5);
     } else if (type === "multi") {
-      state.run.critMultiplierBase = clamp(state.run.critMultiplierBase + 0.1, 1.5, 3.0);
+      state.run.critMultiplierBase = clamp(state.run.critMultiplierBase + 0.1 * count, 1.5, 3.0);
     }
 
+    addLog(
+      t("log.upgradeBought", {
+        name: t(`upgrades.${type === "auto" ? "merc" : type === "click" ? "sword" : type === "crit" ? "edge" : "swing"}.title`),
+        count,
+        gold: formatNumber(totalCost),
+      })
+    );
     playSfx("confirm");
     updateUi();
     updateTutorial();
@@ -3016,6 +3451,440 @@
     updateUi();
   }
 
+  function rollMercGrade() {
+    const roll = randInt(1, 100);
+    let acc = 0;
+    for (const entry of MERC_GRADE_WEIGHTS) {
+      acc += entry.weight;
+      if (roll <= acc) {
+        return entry.grade;
+      }
+    }
+    return "F";
+  }
+
+  function createMerc() {
+    return normalizeMerc({
+      id: `merc-${Date.now()}-${randInt(1000, 9999)}`,
+      grade: rollMercGrade(),
+      classId: MERC_CLASSES[randInt(0, MERC_CLASSES.length - 1)],
+      level: 0,
+      nextAttackAt: 0,
+      nextSkillAt: 0,
+    });
+  }
+
+  function getMercLevelCost(merc, count) {
+    const base = MERC_BASE_COST[merc.grade] || 30;
+    let total = 0;
+    for (let i = 0; i < count; i += 1) {
+      total += Math.floor(base * Math.pow(1.18, merc.level + i));
+    }
+    return total;
+  }
+
+  function getMercMaxAffordableLevels(merc) {
+    let total = 0;
+    let count = 0;
+    const base = MERC_BASE_COST[merc.grade] || 30;
+    while (count < UPGRADE_MAX_BUY) {
+      const cost = Math.floor(base * Math.pow(1.18, merc.level + count));
+      if (total + cost > state.run.gold) {
+        break;
+      }
+      total += cost;
+      count += 1;
+    }
+    return { count, total };
+  }
+
+  function getMercDamage(merc) {
+    return getMercBasicHit(merc);
+  }
+
+  function getSupportBuffValue(merc) {
+    const baseMap = { F: 4, E: 6, D: 8, C: 10, B: 12 };
+    const base = baseMap[merc.grade] || 4;
+    return Math.min(30, base + Math.floor(merc.level * 0.2));
+  }
+
+  function isMercEquipped(mercId) {
+    return state.mercs.equippedIds.includes(mercId);
+  }
+
+  function getSelectedMerc() {
+    return state.mercs.owned.find((merc) => merc.id === state.ui.selectedMercId) || null;
+  }
+
+  function hireMerc() {
+    if (testMode) {
+      return;
+    }
+    const free = !state.meta.freeMercHireUsed;
+    if (!free && state.meta.totalHonor < 1) {
+      addLog(t("log.notEnoughGold"));
+      return;
+    }
+    if (!free) {
+      state.meta.totalHonor -= 1;
+    } else {
+      state.meta.freeMercHireUsed = true;
+    }
+    const merc = createMerc();
+    state.mercs.owned.push(merc);
+    state.ui.selectedMercId = merc.id;
+    addLog(t("log.mercHired", { name: getMercName(merc) }));
+    playSfx("confirm");
+    dirty.mercs = true;
+    updateUi();
+  }
+
+  function selectMerc(mercId) {
+    if (!mercId) {
+      return;
+    }
+    state.ui.selectedMercId = mercId;
+    dirty.mercs = true;
+    updateUi();
+  }
+
+  function equipSelectedMerc() {
+    const merc = getSelectedMerc();
+    if (!merc) {
+      return;
+    }
+    if (isMercEquipped(merc.id)) {
+      return;
+    }
+    if (state.mercs.equippedIds.length >= state.meta.mercMaxSlots) {
+      addLog(t("log.actionBlocked", { action: "merc-slot" }));
+      return;
+    }
+    state.mercs.equippedIds.push(merc.id);
+    addLog(t("log.mercEquipped", { name: getMercName(merc) }));
+    playSfx("confirm");
+    dirty.mercs = true;
+    updateUi();
+  }
+
+  function unequipSelectedMerc() {
+    const merc = getSelectedMerc();
+    if (!merc) {
+      return;
+    }
+    if (!isMercEquipped(merc.id)) {
+      return;
+    }
+    state.mercs.equippedIds = state.mercs.equippedIds.filter((id) => id !== merc.id);
+    addLog(t("log.mercUnequipped", { name: getMercName(merc) }));
+    playSfx("confirm");
+    dirty.mercs = true;
+    updateUi();
+  }
+
+  function getNextMercSlotUnlockZone() {
+    const nextSlot = state.meta.mercMaxSlots + 1;
+    if (nextSlot === 4) {
+      return 20;
+    }
+    if (nextSlot === 5) {
+      return 30;
+    }
+    if (nextSlot === 6) {
+      return 40;
+    }
+    return null;
+  }
+
+  function canUnlockNextMercSlot() {
+    const zone = getNextMercSlotUnlockZone();
+    if (!zone) {
+      return false;
+    }
+    return !!state.meta.chapterClears[zone];
+  }
+
+  function addMercSlot() {
+    const zone = getNextMercSlotUnlockZone();
+    if (!zone || !state.meta.chapterClears[zone]) {
+      return;
+    }
+    state.meta.mercMaxSlots = clamp(state.meta.mercMaxSlots + 1, 3, 6);
+    addLog(t("log.mercSlotUnlocked"));
+    playSfx("confirm");
+    dirty.mercs = true;
+    updateUi();
+  }
+
+  function levelSelectedMerc(countRaw) {
+    const merc = getSelectedMerc();
+    if (!merc) {
+      return;
+    }
+    const maxInfo = getMercMaxAffordableLevels(merc);
+    let count = 0;
+    if (countRaw === "max") {
+      count = maxInfo.count;
+    } else {
+      count = Math.min(Number(countRaw) || 0, maxInfo.count);
+    }
+    if (count <= 0) {
+      return;
+    }
+    const cost = getMercLevelCost(merc, count);
+    if (state.run.gold < cost) {
+      return;
+    }
+    state.run.gold -= cost;
+    merc.level += count;
+    addLog(t("log.mercLeveled", { name: getMercName(merc), count, gold: formatNumber(cost) }));
+    playSfx("confirm");
+    dirty.mercs = true;
+    updateUi();
+  }
+
+  function updateMercUi() {
+    if (!el.mercRosterList || !el.mercSlotRow) {
+      return;
+    }
+    const free = !state.meta.freeMercHireUsed;
+    if (el.mercHire) {
+      el.mercHire.textContent = free ? t("ui.mercFreeHire") : t("ui.mercHireBtn");
+      el.mercHire.disabled = !free && state.meta.totalHonor < 1;
+    }
+    if (el.mercOdds) {
+      el.mercOdds.textContent = t("ui.mercOdds");
+    }
+    const canAddSlot = canUnlockNextMercSlot();
+    if (el.mercAddSlot) {
+      el.mercAddSlot.style.display = canAddSlot ? "inline-flex" : "none";
+      el.mercAddSlot.disabled = !canAddSlot;
+    }
+
+    el.mercSlotRow.innerHTML = "";
+    for (let i = 0; i < state.meta.mercMaxSlots; i += 1) {
+      const mercId = state.mercs.equippedIds[i];
+      const slot = document.createElement("button");
+      slot.type = "button";
+      slot.className = "merc-slot tile";
+      if (mercId) {
+        const merc = state.mercs.owned.find((entry) => entry.id === mercId);
+        if (merc) {
+          slot.classList.add(`grade-${merc.grade.toLowerCase()}`);
+          slot.dataset.action = "merc-select";
+          slot.dataset.mercId = merc.id;
+          setTileIcon(slot, getMercIconClass(merc));
+          slot.dataset.tooltip = buildMercTooltip(merc);
+        }
+      } else {
+        slot.textContent = "-";
+      }
+      el.mercSlotRow.appendChild(slot);
+    }
+
+    el.mercRosterList.innerHTML = "";
+    state.mercs.owned.forEach((merc) => {
+      const tile = document.createElement("button");
+      const isEquipped = isMercEquipped(merc.id);
+      const isSelected = state.ui.selectedMercId === merc.id;
+      tile.type = "button";
+      tile.className = `tile merc-tile grade-${merc.grade.toLowerCase()}${isEquipped ? " equipped" : ""}${
+        isSelected ? " selected" : ""
+      }`;
+      tile.dataset.action = "merc-select";
+      tile.dataset.mercId = merc.id;
+      tile.dataset.tooltip = buildMercTooltip(merc);
+      const icon = document.createElement("div");
+      icon.className = `tile-icon ${getMercIconClass(merc)}`;
+      const level = document.createElement("div");
+      level.className = "merc-lv";
+      level.textContent = `Lv.${merc.level}`;
+      tile.appendChild(icon);
+      tile.appendChild(level);
+      el.mercRosterList.appendChild(tile);
+    });
+
+    const selected = getSelectedMerc();
+    if (el.mercSelected) {
+      el.mercSelected.textContent = selected
+        ? t("ui.mercSelected", { name: getMercName(selected), level: selected.level })
+        : t("ui.none");
+    }
+    if (el.mercEquip) {
+      el.mercEquip.disabled =
+        !selected || isMercEquipped(selected.id) || state.mercs.equippedIds.length >= state.meta.mercMaxSlots;
+    }
+    if (el.mercUnequip) {
+      el.mercUnequip.disabled = !selected || !isMercEquipped(selected.id);
+    }
+
+    if (selected) {
+      const cost1 = getMercLevelCost(selected, 1);
+      const cost10 = getMercLevelCost(selected, 10);
+      const maxInfo = getMercMaxAffordableLevels(selected);
+      if (el.mercLevel1) {
+        el.mercLevel1.textContent = `+1 (${formatNumber(cost1)}G)`;
+        el.mercLevel1.disabled = state.run.gold < cost1 || maxInfo.count < 1;
+      }
+      if (el.mercLevel10) {
+        el.mercLevel10.textContent = `+10 (${formatNumber(cost10)}G)`;
+        el.mercLevel10.disabled = state.run.gold < cost10 || maxInfo.count < 10;
+      }
+      if (el.mercLevelMax) {
+        el.mercLevelMax.textContent = `${t("ui.max")} (${formatNumber(maxInfo.total)}G)`;
+        el.mercLevelMax.disabled = maxInfo.count <= 0;
+      }
+    } else {
+      if (el.mercLevel1) {
+        el.mercLevel1.textContent = "+1";
+        el.mercLevel1.disabled = true;
+      }
+      if (el.mercLevel10) {
+        el.mercLevel10.textContent = "+10";
+        el.mercLevel10.disabled = true;
+      }
+      if (el.mercLevelMax) {
+        el.mercLevelMax.textContent = t("ui.max");
+        el.mercLevelMax.disabled = true;
+      }
+    }
+
+    updateMercBar();
+    dirty.mercs = false;
+  }
+
+  function updateMercBar() {
+    if (!el.mercBar) {
+      return;
+    }
+    el.mercBar.innerHTML = "";
+    state.mercs.equippedIds.forEach((mercId) => {
+      const merc = state.mercs.owned.find((entry) => entry.id === mercId);
+      if (!merc) {
+        return;
+      }
+      const tile = document.createElement("div");
+      tile.className = `merc-mini grade-${merc.grade.toLowerCase()}`;
+      tile.dataset.mercId = merc.id;
+      const glyph = document.createElement("div");
+      glyph.className = `merc-mini-icon ${getMercIconClass(merc)}`;
+      const basic = getMercDisplayBasicText(merc);
+      const label = document.createElement("div");
+      label.className = "merc-basic";
+      label.textContent = `${t("ui.mercBasicShort")}: ${basic.hitText}`;
+      tile.appendChild(glyph);
+      tile.appendChild(label);
+      el.mercBar.appendChild(tile);
+    });
+  }
+
+  function flashMercSkill(mercId) {
+    if (!el.mercBar) {
+      return;
+    }
+    const tile = el.mercBar.querySelector(`[data-merc-id="${mercId}"]`);
+    if (!tile) {
+      return;
+    }
+    tile.classList.add("skill-flash");
+    setTimeout(() => tile.classList.remove("skill-flash"), 300);
+  }
+
+  function showMercDamage(mercId, text, isSkill = false, type = "") {
+    if (!el.mercBar) {
+      return;
+    }
+    const tile = el.mercBar.querySelector(`[data-merc-id="${mercId}"]`);
+    if (!tile) {
+      return;
+    }
+    const floater = document.createElement("div");
+    floater.className = `merc-floater${isSkill ? " skill" : ""}${type ? ` ${type}` : ""}`;
+    floater.textContent = text;
+    tile.appendChild(floater);
+    mercFloaters.push(floater);
+    if (mercFloaters.length > MERC_MAX_FLOATERS) {
+      const oldest = mercFloaters.shift();
+      if (oldest && oldest.parentNode) {
+        oldest.parentNode.removeChild(oldest);
+      }
+    }
+    setTimeout(() => {
+      floater.remove();
+      mercFloaters = mercFloaters.filter((entry) => entry !== floater);
+    }, 800);
+  }
+
+  function applyMercDamage(mercId, rawDamage, isSkill = false, extraMult = 1) {
+    if (state.run.rewardLock || state.run.monsterHp <= 0) {
+      return;
+    }
+    const mult = getBossDamageMultiplier() * getTypeDamageMultiplier() * extraMult;
+    const final = Math.max(1, Math.floor(rawDamage * mult));
+    state.run.monsterHp = Math.max(0, state.run.monsterHp - final);
+    updateHpUi();
+    showMercDamage(mercId, `-${formatNumber(final)}`, isSkill);
+    if (state.run.monsterHp <= 0) {
+      grantRewards();
+    }
+  }
+
+  function handleMercCombat() {
+    if (
+      state.run.rewardLock ||
+      !state.mercs ||
+      !Array.isArray(state.mercs.equippedIds) ||
+      !state.mercs.equippedIds.length ||
+      state.run.monsterHp <= 0
+    ) {
+      return;
+    }
+    const now = Date.now();
+    const isBoss = state.run.isBoss || state.run.isChapterBoss;
+    state.mercs.equippedIds.forEach((id) => {
+      const merc = state.mercs.owned.find((entry) => entry.id === id);
+      if (!merc) {
+        return;
+      }
+      const classId = merc.classId;
+      const attackInterval = getMercIntervalMs(merc);
+      if (attackInterval > 0) {
+        if (!merc.nextAttackAt || now >= merc.nextAttackAt) {
+          merc.nextAttackAt = now + attackInterval;
+          let dmg = getMercBasicHit(merc);
+          if (devMode && !merc._mismatchLogged) {
+            const expected = getMercBasicHit(merc);
+            if (dmg !== expected) {
+              merc._mismatchLogged = true;
+              addLog(`Merc basic mismatch: ${dmg}/${expected}`);
+            }
+          }
+          if (classId === "breaker" && isBoss) {
+            dmg = Math.floor(dmg * (1 + getMercBossBonusPct(merc) / 100));
+          }
+          applyMercDamage(merc.id, dmg, false);
+        }
+      }
+      const skillCooldown = getMercSkillCooldownMs(merc);
+      if (skillCooldown > 0) {
+        if (!merc.nextSkillAt || now >= merc.nextSkillAt) {
+          merc.nextSkillAt = now + skillCooldown;
+          if (classId === "striker") {
+            const dmg = getMercSkillDamage(merc);
+            applyMercDamage(merc.id, dmg, true);
+            flashMercSkill(merc.id);
+          } else if (classId === "support") {
+            const buffPct = getSupportBuffValue(merc);
+            state.run.supportBuffPct = Math.max(state.run.supportBuffPct, buffPct);
+            state.run.supportBuffUntil = now + MERC_SUPPORT_DURATION_MS;
+            showMercDamage(merc.id, `+${buffPct}%`, true, "buff");
+            flashMercSkill(merc.id);
+          }
+        }
+      }
+    });
+  }
+
   function createQuest() {
     if (!QUEST_TEMPLATES.length) {
       return {
@@ -3222,6 +4091,7 @@
     if (quest.rewardType === "honor") {
       state.meta.totalHonor += quest.rewardAmount;
       state.session.honorGained += quest.rewardAmount;
+      dirty.mercs = true;
       rewardText = `+${formatNumber(quest.rewardAmount)} ${t("ui.honor")}`;
     } else if (quest.rewardType === "rune") {
       const rune = generateRune();
@@ -3326,6 +4196,7 @@
     addLog(t("log.prestige", { amount: formatNumber(honorGained) }));
     finalizeSession();
     resetRun();
+    dirty.mercs = true;
     saveGame();
     updateUi();
   }
@@ -3459,6 +4330,7 @@
       version: "v0.5",
       meta: state.meta,
       run: runSave,
+      mercs: state.mercs,
       upgrades: state.upgrades,
       log: state.log,
       session: state.session,
@@ -3486,6 +4358,8 @@
       BASE_INVENTORY_SLOTS,
       Math.floor(state.meta.inventoryMaxSlots || BASE_INVENTORY_SLOTS)
     );
+    state.meta.freeMercHireUsed = !!state.meta.freeMercHireUsed;
+    state.meta.mercMaxSlots = clamp(Math.floor(state.meta.mercMaxSlots || 3), 3, 6);
 
     state.run = { ...defaults.run, ...data.run };
     state.run.skills = { ...defaults.run.skills, ...state.run.skills };
@@ -3495,6 +4369,14 @@
     state.run.currentBossPattern = normalizeBossPattern(state.run.currentBossPattern);
     if (state.run.fusionSelection) {
       delete state.run.fusionSelection;
+    }
+
+    state.mercs = { ...defaults.mercs, ...(data.mercs || {}) };
+    if (!Array.isArray(state.mercs.owned)) {
+      state.mercs.owned = [];
+    }
+    if (!Array.isArray(state.mercs.equippedIds)) {
+      state.mercs.equippedIds = [];
     }
 
     state.upgrades = { ...defaults.upgrades, ...data.upgrades };
@@ -3508,6 +4390,14 @@
     state.log = (Array.isArray(data.log) ? data.log : []).slice(0, LOG_MAX);
 
     state.ui = { ...defaults.ui, ...(data.ui || {}) };
+    state.ui.upgradeBuyMult = {
+      ...defaults.ui.upgradeBuyMult,
+      ...(state.ui.upgradeBuyMult || {}),
+    };
+    state.ui.upgradeBuyMult = {
+      ...defaults.ui.upgradeBuyMult,
+      ...(state.ui.upgradeBuyMult || {}),
+    };
     if (!data.ui || data.ui.tutorialDone === undefined) {
       state.ui.tutorialDone = true;
     }
@@ -3575,6 +4465,14 @@
       state.ui.selectedRuneId = null;
     }
 
+    state.mercs.owned = state.mercs.owned.map((merc) => normalizeMerc(merc)).filter(Boolean);
+    state.mercs.equippedIds = state.mercs.equippedIds
+      .filter((id) => state.mercs.owned.find((merc) => merc.id === id))
+      .slice(0, state.meta.mercMaxSlots);
+    if (!state.mercs.owned.find((merc) => merc.id === state.ui.selectedMercId)) {
+      state.ui.selectedMercId = null;
+    }
+
     if (!Array.isArray(state.run.runeShop) || state.run.runeShop.length === 0) {
       state.run.runeShop = Array.from({ length: MAX_RUNE_OFFERS }, () => generateRuneOffer());
     } else {
@@ -3610,6 +4508,7 @@
     dirty.quests = true;
     dirty.collections = true;
     dirty.achievements = true;
+    dirty.mercs = true;
     dirty.i18n = true;
   }
 
@@ -3634,16 +4533,18 @@
         state.meta.titlesUnlocked = data.meta.titlesUnlocked || [];
         state.meta.regionsReached = data.meta.regionsReached || ["greenfields"];
         state.meta.collections = { ...defaults.meta.collections, ...data.meta.collections };
-      state.meta.chapterClears = { ...defaults.meta.chapterClears, ...state.meta.chapterClears };
-      state.meta.metaBonuses = { ...defaults.meta.metaBonuses, ...state.meta.metaBonuses };
-      state.meta.metaBonuses.skillCdrPct = clamp(state.meta.metaBonuses.skillCdrPct || 0, 0, 30);
-      state.meta.metaBonuses.refreshDiscountPct = clamp(state.meta.metaBonuses.refreshDiscountPct || 0, 0, 50);
-      state.meta.metaBonuses.runeShopRarePct = clamp(state.meta.metaBonuses.runeShopRarePct || 0, 0, 20);
-      state.meta.metaBonuses.sellBonusPct = clamp(state.meta.metaBonuses.sellBonusPct || 0, 0, 100);
-      state.meta.inventoryMaxSlots = Math.max(
-        BASE_INVENTORY_SLOTS,
-        Math.floor(state.meta.inventoryMaxSlots || BASE_INVENTORY_SLOTS)
-      );
+        state.meta.chapterClears = { ...defaults.meta.chapterClears, ...state.meta.chapterClears };
+        state.meta.metaBonuses = { ...defaults.meta.metaBonuses, ...state.meta.metaBonuses };
+        state.meta.metaBonuses.skillCdrPct = clamp(state.meta.metaBonuses.skillCdrPct || 0, 0, 30);
+        state.meta.metaBonuses.refreshDiscountPct = clamp(state.meta.metaBonuses.refreshDiscountPct || 0, 0, 50);
+        state.meta.metaBonuses.runeShopRarePct = clamp(state.meta.metaBonuses.runeShopRarePct || 0, 0, 20);
+        state.meta.metaBonuses.sellBonusPct = clamp(state.meta.metaBonuses.sellBonusPct || 0, 0, 100);
+        state.meta.inventoryMaxSlots = Math.max(
+          BASE_INVENTORY_SLOTS,
+          Math.floor(state.meta.inventoryMaxSlots || BASE_INVENTORY_SLOTS)
+        );
+        state.meta.freeMercHireUsed = !!state.meta.freeMercHireUsed;
+        state.meta.mercMaxSlots = clamp(Math.floor(state.meta.mercMaxSlots || 3), 3, 6);
       }
 
       if (data.run) {
@@ -3656,6 +4557,14 @@
         state.run.rewardLock = !!state.run.rewardLock;
         state.run.pendingChapterReward = state.run.pendingChapterReward || null;
         state.run.currentBossPattern = normalizeBossPattern(state.run.currentBossPattern);
+      }
+
+      state.mercs = { ...defaults.mercs, ...(data.mercs || {}) };
+      if (!Array.isArray(state.mercs.owned)) {
+        state.mercs.owned = [];
+      }
+      if (!Array.isArray(state.mercs.equippedIds)) {
+        state.mercs.equippedIds = [];
       }
 
       if (data.upgrades) {
@@ -3675,6 +4584,10 @@
       state.log = (Array.isArray(data.log) ? data.log : []).slice(0, LOG_MAX);
 
       state.ui = { ...defaults.ui, ...(data.ui || {}) };
+      state.ui.upgradeBuyMult = {
+        ...defaults.ui.upgradeBuyMult,
+        ...(state.ui.upgradeBuyMult || {}),
+      };
       if (!data.ui || data.ui.tutorialDone === undefined) {
         state.ui.tutorialDone = true;
       }
@@ -3759,6 +4672,14 @@
       if (!state.run.runes.find((rune) => rune.id === state.ui.selectedRuneId)) {
         state.ui.selectedRuneId = null;
       }
+
+      state.mercs.owned = state.mercs.owned.map((merc) => normalizeMerc(merc)).filter(Boolean);
+      state.mercs.equippedIds = state.mercs.equippedIds
+        .filter((id) => state.mercs.owned.find((merc) => merc.id === id))
+        .slice(0, state.meta.mercMaxSlots);
+      if (!state.mercs.owned.find((merc) => merc.id === state.ui.selectedMercId)) {
+        state.ui.selectedMercId = null;
+      }
       if (!Array.isArray(state.run.runeShop) || state.run.runeShop.length === 0) {
         state.run.runeShop = Array.from({ length: MAX_RUNE_OFFERS }, () => generateRuneOffer());
       } else {
@@ -3807,6 +4728,7 @@
       dirty.quests = true;
       dirty.collections = true;
       dirty.achievements = true;
+      dirty.mercs = true;
       dirty.i18n = true;
     } catch (error) {
       spawnMonster(false);
@@ -3852,6 +4774,7 @@
   function setNumFormat(value) {
     state.ui.numFormat = value;
     localStorage.setItem(UI_NUMFMT_KEY, value);
+    dirty.mercs = true;
     updateSettingsButtons();
     updateUi();
   }
@@ -3893,6 +4816,9 @@
       if (tab === "inventory") {
         dirty.inventory = true;
       }
+      if (tab === "mercs") {
+        dirty.mercs = true;
+      }
       updateTutorial();
     };
 
@@ -3931,6 +4857,7 @@
       {
         meta: state.meta,
         run: state.run,
+        mercs: state.mercs,
         upgrades: state.upgrades,
         session: state.session,
         sessionHistory: state.sessionHistory,
@@ -4010,11 +4937,24 @@
 
   function onGlobalClick(event) {
     unlockAudio();
-    const button = event.target.closest("button[data-action], [role='button'][data-action]");
+    const button = event.target.closest("[data-action]");
     if (!button) {
+      if (devMode) {
+        const grid = event.target.closest("#inventory-list, #rune-inventory-list, #merc-roster-list");
+        if (grid && Date.now() - lastMissLogAt > 1000) {
+          lastMissLogAt = Date.now();
+          const top = document.elementFromPoint(event.clientX, event.clientY);
+          const label = top ? `${top.tagName}.${top.className || "no-class"}` : "unknown";
+          addLog(`Click missed tile action; possible overlay: ${label}`);
+        }
+      }
       return;
     }
-    if (button.disabled) {
+    if (button.matches("button") && button.disabled) {
+      devNote("log.actionBlocked", { action: button.dataset.action || "-" });
+      return;
+    }
+    if (button.getAttribute("aria-disabled") === "true") {
       devNote("log.actionBlocked", { action: button.dataset.action || "-" });
       return;
     }
@@ -4030,14 +4970,30 @@
     }
     try {
       const action = button.dataset.action;
-      if (action === "select-item") {
+      if (action === "inv-select") {
         selectInventoryItem(button.dataset.itemId);
+      } else if (action === "buy-upgrade") {
+        buyUpgrade(button.dataset.upgrade);
+      } else if (action === "set-upg-mult") {
+        setUpgradeMultiplier(button.dataset.upgrade, button.dataset.mult);
       } else if (action === "equip-item") {
         equipItem(button.dataset.itemId);
       } else if (action === "equip-selected-item") {
         equipSelectedItem();
       } else if (action === "sell-selected-item") {
         sellSelectedItem();
+      } else if (action === "merc-select") {
+        selectMerc(button.dataset.mercId);
+      } else if (action === "merc-hire") {
+        hireMerc();
+      } else if (action === "merc-add-slot") {
+        addMercSlot();
+      } else if (action === "merc-equip") {
+        equipSelectedMerc();
+      } else if (action === "merc-unequip") {
+        unequipSelectedMerc();
+      } else if (action === "merc-level") {
+        levelSelectedMerc(button.dataset.count);
       } else if (action === "expand-inventory") {
         expandInventory();
       } else if (action === "unequip-weapon") {
@@ -4062,7 +5018,7 @@
         claimQuest(button.dataset.questId);
       } else if (action === "reroll-quest") {
         rerollQuests();
-      } else if (action === "select-rune") {
+      } else if (action === "rune-select") {
         selectRune(button.dataset.runeId);
       } else if (action === "set-lang") {
         setLang(button.dataset.lang);
@@ -4100,6 +5056,10 @@
     }
   }
 
+  function onPointerDown(event) {
+    onGlobalClick(event);
+  }
+
   function onGlobalDblClick(event) {
     unlockAudio();
     const tile = event.target.closest(".tile[data-item-id], .tile[data-rune-id]");
@@ -4135,11 +5095,20 @@
 
     state.run.gold = 999999;
     state.run.zone = 10;
+    state.meta.totalHonor = 2;
+    state.meta.freeMercHireUsed = false;
+    state.meta.mercMaxSlots = 3;
+    state.mercs.owned = [];
+    state.mercs.equippedIds = [];
+    state.ui.upgradeBuyMult = { click: "1", auto: "1", crit: "1", multi: "1" };
     if (state.run.inventory.length === 0) {
       state.run.inventory.push(
         generateEquipmentItem("Common", "weapon", "greenfields"),
         generateEquipmentItem("Common", "relic", "greenfields")
       );
+    }
+    if (state.run.inventory.length < 3) {
+      state.run.inventory.push(generateEquipmentItem("Common", "weapon", "greenfields"));
     }
     state.run.equippedWeaponId = state.run.inventory.find((i) => i.slot === "weapon")?.id || null;
     state.run.equippedRelicId = state.run.inventory.find((i) => i.slot === "relic")?.id || null;
@@ -4173,6 +5142,7 @@
       "[data-test='tab-inventory']",
       "[data-test='tab-quests']",
       "[data-test='tab-runes']",
+      "[data-test='tab-mercs']",
       "[data-test='tab-achievements']",
       "[data-test='tab-collections']",
       "[data-test='tab-settings']",
@@ -4187,6 +5157,11 @@
       "[data-test='unequip-relic']",
       "[data-test='unequip-rune']",
       "[data-test='rune-refresh']",
+      "[data-test='merc-hire']",
+      "[data-test='merc-add-slot']",
+      "[data-test='merc-equip']",
+      "[data-test='merc-unequip']",
+      "[data-test='merc-level-1']",
       "[data-test='export']",
       "[data-test='import']",
       "[data-test='run-tests']",
@@ -4231,6 +5206,131 @@
         results.push(`${failLabel}: rune-affordability`);
       }
     }
+
+    const invTile = Array.from(document.querySelectorAll("#inventory-list .tile[data-item-id]")).find(
+      (tile) =>
+        tile.dataset.itemId !== state.run.equippedWeaponId &&
+        tile.dataset.itemId !== state.run.equippedRelicId
+    );
+    if (invTile) {
+      invTile.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      const canAct = el.inventoryEquip && !el.inventoryEquip.disabled;
+      if (state.ui.selectedInventoryItemId && canAct) {
+        results.push(`${passLabel}: inventory-select`);
+      } else {
+        results.push(`${failLabel}: inventory-select`);
+      }
+    }
+
+    const runeTile = document.querySelector("#rune-inventory-list .tile[data-rune-id]");
+    if (runeTile) {
+      runeTile.click();
+      if (state.ui.selectedRuneId) {
+        results.push(`${passLabel}: rune-select`);
+      } else {
+        results.push(`${failLabel}: rune-select`);
+      }
+    }
+
+    if (state.run.runes.length > 0) {
+      state.run.equippedRelicId = null;
+      state.ui.selectedRuneId = state.run.runes[0].id;
+      dirty.runes = true;
+      updateRuneUi();
+      const reasonText = el.runeSocketWrap?.dataset.tooltip || "";
+      if (reasonText && reasonText.includes(t("runes.socket.reason.noRelicEquipped"))) {
+        results.push(`${passLabel}: rune-socket-reason`);
+      } else {
+        results.push(`${failLabel}: rune-socket-reason`);
+      }
+      const relic = state.run.inventory.find((item) => item.slot === "relic");
+      if (relic) {
+        state.run.equippedRelicId = relic.id;
+      }
+      dirty.runes = true;
+      updateRuneUi();
+      if (el.runeSocket && !el.runeSocket.disabled) {
+        results.push(`${passLabel}: rune-socket-enable`);
+      } else {
+        results.push(`${failLabel}: rune-socket-enable`);
+      }
+    }
+
+    const mercTile = document.querySelector("#merc-roster-list .tile[data-merc-id]");
+    if (mercTile) {
+      mercTile.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      const canEquip = el.mercEquip && !el.mercEquip.disabled;
+      if (state.ui.selectedMercId && canEquip) {
+        results.push(`${passLabel}: merc-select`);
+      } else {
+        results.push(`${failLabel}: merc-select`);
+      }
+    }
+
+    updateMercBar();
+    const mercMini = el.mercBar.querySelector(".merc-basic");
+    if (mercMini && mercMini.textContent.includes(t("ui.mercBasicDps"))) {
+      results.push(`${passLabel}: merc-basic-dps`);
+    } else {
+      results.push(`${failLabel}: merc-basic-dps`);
+    }
+
+    const testMerc = normalizeMerc({ grade: "E", classId: "support", level: 13 });
+    const hit = getMercBasicHit(testMerc);
+    const interval = getMercBasicIntervalSec(testMerc);
+    const dps = getMercBasicDps(testMerc);
+    if (Math.abs(dps - hit / interval) < 0.01) {
+      results.push(`${passLabel}: merc-dps-math`);
+    } else {
+      results.push(`${failLabel}: merc-dps-math`);
+    }
+
+    const tip = buildMercTooltip(testMerc);
+    if (tip.includes(t("ui.mercBasicHit")) && tip.includes(t("ui.mercBasicDps"))) {
+      results.push(`${passLabel}: merc-tooltip-basic`);
+    } else {
+      results.push(`${failLabel}: merc-tooltip-basic`);
+    }
+
+    if (el.tooltip) {
+      const tipStyle = window.getComputedStyle(el.tooltip);
+      if (tipStyle.pointerEvents === "none") {
+        results.push(`${passLabel}: tooltip-pointer-events`);
+      } else {
+        results.push(`${failLabel}: tooltip-pointer-events`);
+      }
+    }
+
+    const multBtn10 = document.querySelector(".buy-mults[data-upgrade='click'] [data-mult='10']");
+    if (multBtn10) {
+      state.run.gold = 0;
+      updateUpgradeMultipliers();
+      const hiddenLow = multBtn10.classList.contains("is-hidden");
+      state.run.gold = 999999;
+      updateUpgradeMultipliers();
+      const hiddenHigh = multBtn10.classList.contains("is-hidden");
+      if (hiddenLow && !hiddenHigh) {
+        results.push(`${passLabel}: bulk-visibility`);
+      } else {
+        results.push(`${failLabel}: bulk-visibility`);
+      }
+    }
+
+    const prevTestMode = testMode;
+    testMode = false;
+    state.upgrades.click.level = 0;
+    state.run.clickDamageBase = 1;
+    state.run.gold = 999999;
+    setUpgradeMultiplier("click", "10");
+    const expectedCost = getUpgradeTotalCost(state.upgrades.click, 10);
+    const goldBefore = state.run.gold;
+    buyUpgrade("click");
+    if (state.upgrades.click.level === 10 && state.run.gold === goldBefore - expectedCost) {
+      results.push(`${passLabel}: bulk-buy`);
+    } else {
+      results.push(`${failLabel}: bulk-buy`);
+    }
+    testMode = prevTestMode;
 
     const beforeSlots = getInventoryMaxSlots();
     state.run.gold = 999999;
@@ -4299,6 +5399,43 @@
       }
     }
 
+    testMode = false;
+    state.meta.totalHonor = 1;
+    state.meta.freeMercHireUsed = false;
+    const hiresBefore = state.mercs.owned.length;
+    hireMerc();
+    const freeHireOk = state.mercs.owned.length === hiresBefore + 1 && state.meta.totalHonor === 1;
+    hireMerc();
+    const paidHireOk = state.mercs.owned.length === hiresBefore + 2 && state.meta.totalHonor === 0;
+    if (freeHireOk && paidHireOk) {
+      results.push(`${passLabel}: merc-hire`);
+    } else {
+      results.push(`${failLabel}: merc-hire`);
+    }
+
+    state.meta.mercMaxSlots = 3;
+    state.meta.chapterClears[20] = true;
+    addMercSlot();
+    if (state.meta.mercMaxSlots === 4) {
+      results.push(`${passLabel}: merc-slot-unlock`);
+    } else {
+      results.push(`${failLabel}: merc-slot-unlock`);
+    }
+
+    if (state.mercs.owned.length > 0) {
+      state.ui.selectedMercId = state.mercs.owned[0].id;
+      equipSelectedMerc();
+      updateMercBar();
+      const hasMercTile = !!el.mercBar.querySelector(`[data-merc-id='${state.mercs.owned[0].id}']`);
+      handleMercCombat();
+      if (hasMercTile) {
+        results.push(`${passLabel}: merc-equip-bar`);
+      } else {
+        results.push(`${failLabel}: merc-equip-bar`);
+      }
+    }
+    testMode = prevTestMode;
+
     spawnMonster(true);
     updateBossPatternUi();
     if (el.bossPattern && el.bossPattern.textContent && el.bossPattern.textContent !== "-") {
@@ -4360,6 +5497,7 @@
     dirty.inventory = true;
     dirty.runes = true;
     dirty.quests = true;
+    dirty.mercs = true;
     updateUi();
   }
 
@@ -4391,10 +5529,6 @@
 
     el.monster.addEventListener("click", () => handleClick(false));
     el.weakPoint.addEventListener("click", handleWeakPointClick);
-    el.buyClick.addEventListener("click", () => buyUpgrade("click"));
-    el.buyAuto.addEventListener("click", () => buyUpgrade("auto"));
-    el.buyCrit.addEventListener("click", () => buyUpgrade("crit"));
-    el.buyMulti.addEventListener("click", () => buyUpgrade("multi"));
     el.skillActivate.addEventListener("click", activateSkill);
     el.skillSelect.addEventListener("click", (event) => {
       const target = event.target;
@@ -4485,7 +5619,7 @@
       });
     }
 
-    document.addEventListener("click", onGlobalClick, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("dblclick", onGlobalDblClick, true);
     document.addEventListener("mousemove", handleTooltipMove);
     document.addEventListener("mouseleave", hideTooltip);

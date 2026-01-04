@@ -1,10 +1,16 @@
-# Pixel Mercenary Clicker (v0.71)
+# Pixel Mercenary Clicker (v1.0)
 
 A small, local-only medieval fantasy clicker with a pixel-art vibe. Click monsters to earn gold, collect gear and runes, complete quests, and prestige for Honor.
 
 ## Run
 
 Open `index.html` in any modern browser. No build step or dependencies.
+
+## v1.0 Art Pass
+
+- Sprite-sheet skin applied to UI panels, tabs, and buttons.
+- Icon tiles for inventory, runes, and mercs.
+- Battle sprites for monsters and merc tiles (static frame).
 
 ## v0.6 Highlights
 
@@ -44,6 +50,13 @@ Open `index.html` in any modern browser. No build step or dependencies.
 - Gear can roll a small affix bonus; tooltips show the affix line.
 - New chapter reward options: refresh discount, rune rare chance, sell bonus.
 - Selling is instant (no confirm).
+
+## v0.9 Highlights
+
+- Bulk upgrade purchase controls (x1/x10/x100/Max) with live affordability.
+- Auto DPS upgrade renamed to Auto Combat Training.
+- New Mercenaries tab: honor hiring, roster, equip slots, and leveling.
+- Mercs assist in combat with class behaviors and skill flashes.
 
 ## v0.50.1 Hotfix
 

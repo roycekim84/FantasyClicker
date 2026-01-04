@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Fantasy Clicker</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="game">
@@ -63,6 +63,7 @@
             <div class="floating-layer" id="floating-layer"></div>
             <div class="fx-layer" id="fx-layer"></div>
           </div>
+          <div class="merc-bar" id="merc-bar"></div>
           <div class="hint" data-i18n="ui.clickHint"></div>
         </section>
 
@@ -71,6 +72,7 @@
             <button class="tab-button is-active" data-tab="shop" data-test="tab-shop" role="tab" data-i18n="tabs.shop"></button>
             <button class="tab-button" data-tab="inventory" data-test="tab-inventory" role="tab" data-i18n="tabs.inventory"></button>
             <button class="tab-button" data-tab="runes" data-test="tab-runes" role="tab" data-i18n="tabs.runes"></button>
+            <button class="tab-button" data-tab="mercs" data-test="tab-mercs" role="tab" data-i18n="tabs.mercs"></button>
             <button class="tab-button" data-tab="quests" data-test="tab-quests" role="tab" data-i18n="tabs.quests"></button>
             <button class="tab-button" data-tab="achievements" data-test="tab-achievements" role="tab" data-i18n="tabs.achievements"></button>
             <button class="tab-button" data-tab="collections" data-test="tab-collections" role="tab" data-i18n="tabs.collections"></button>
@@ -107,7 +109,13 @@
                       <div class="desc ellipsis" data-i18n="upgrades.sword.desc"></div>
                       <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-click">0</span></div>
                     </div>
-                    <button class="buy" id="buy-click" data-test="buy-click"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-click">0</span>)</button>
+                    <button class="buy" id="buy-click" data-test="buy-click" data-action="buy-upgrade" data-upgrade="click"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-click">0</span>)</button>
+                    <div class="buy-mults" data-upgrade="click">
+                      <button class="tiny is-active" data-action="set-upg-mult" data-upgrade="click" data-mult="1">x1</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="click" data-mult="10">x10</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="click" data-mult="100">x100</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="click" data-mult="max" data-i18n="ui.max"></button>
+                    </div>
                   </div>
 
                   <div class="upgrade" id="upg-auto">
@@ -116,7 +124,13 @@
                       <div class="desc ellipsis" data-i18n="upgrades.merc.desc"></div>
                       <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-auto">0</span></div>
                     </div>
-                    <button class="buy" id="buy-auto" data-test="buy-auto"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-auto">0</span>)</button>
+                    <button class="buy" id="buy-auto" data-test="buy-auto" data-action="buy-upgrade" data-upgrade="auto"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-auto">0</span>)</button>
+                    <div class="buy-mults" data-upgrade="auto">
+                      <button class="tiny is-active" data-action="set-upg-mult" data-upgrade="auto" data-mult="1">x1</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="auto" data-mult="10">x10</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="auto" data-mult="100">x100</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="auto" data-mult="max" data-i18n="ui.max"></button>
+                    </div>
                   </div>
 
                   <div class="upgrade" id="upg-crit">
@@ -125,7 +139,13 @@
                       <div class="desc ellipsis" data-i18n="upgrades.edge.desc"></div>
                       <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-crit">0</span></div>
                     </div>
-                    <button class="buy" id="buy-crit" data-test="buy-crit"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-crit">0</span>)</button>
+                    <button class="buy" id="buy-crit" data-test="buy-crit" data-action="buy-upgrade" data-upgrade="crit"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-crit">0</span>)</button>
+                    <div class="buy-mults" data-upgrade="crit">
+                      <button class="tiny is-active" data-action="set-upg-mult" data-upgrade="crit" data-mult="1">x1</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="crit" data-mult="10">x10</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="crit" data-mult="100">x100</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="crit" data-mult="max" data-i18n="ui.max"></button>
+                    </div>
                   </div>
 
                   <div class="upgrade" id="upg-multi">
@@ -134,16 +154,45 @@
                       <div class="desc ellipsis" data-i18n="upgrades.swing.desc"></div>
                       <div class="level"><span data-i18n="ui.level"></span>: <span id="lvl-multi">0</span></div>
                     </div>
-                    <button class="buy" id="buy-multi" data-test="buy-multi"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-multi">0</span>)</button>
+                    <button class="buy" id="buy-multi" data-test="buy-multi" data-action="buy-upgrade" data-upgrade="multi"><span class="btn-label" data-i18n="ui.buy"></span> (<span id="cost-multi">0</span>)</button>
+                    <div class="buy-mults" data-upgrade="multi">
+                      <button class="tiny is-active" data-action="set-upg-mult" data-upgrade="multi" data-mult="1">x1</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="multi" data-mult="10">x10</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="multi" data-mult="100">x100</button>
+                      <button class="tiny" data-action="set-upg-mult" data-upgrade="multi" data-mult="max" data-i18n="ui.max"></button>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="tutorial" id="tutorial-box">
-                <div class="tutorial-title" id="tutorial-title"></div>
-                <div class="tutorial-text" id="tutorial-text"></div>
-                <div class="tutorial-actions">
-                  <button class="small" data-action="tutorial-next" id="tutorial-next"></button>
-                  <button class="small" data-action="tutorial-skip" id="tutorial-skip"></button>
+            </section>
+
+            <section class="panel tab-panel" data-tab-panel="mercs" id="mercs-panel">
+              <div class="merc-hire">
+                <div class="merc-hire-title" data-i18n="ui.mercHire"></div>
+                <button id="merc-hire" class="small" data-action="merc-hire" data-test="merc-hire" data-i18n="ui.mercHireBtn"></button>
+                <div class="merc-odds" data-tooltip="Merc odds" data-i18n="ui.mercOdds"></div>
+              </div>
+              <div class="merc-slots">
+                <div class="merc-slots-header">
+                  <div data-i18n="ui.mercSlots"></div>
+                  <button id="merc-add-slot" class="small" data-action="merc-add-slot" data-test="merc-add-slot" data-i18n="ui.mercAddSlot"></button>
+                </div>
+                <div class="merc-slot-row" id="merc-slot-row"></div>
+              </div>
+              <div class="merc-roster">
+                <div class="merc-roster-header" data-i18n="ui.mercRoster"></div>
+                <div class="action-bar merc-action" id="merc-action">
+                  <div class="action-label" id="merc-selected">-</div>
+                  <div class="action-buttons">
+                    <button id="merc-equip" class="small" data-action="merc-equip" data-test="merc-equip" data-i18n="btn.equip"></button>
+                    <button id="merc-unequip" class="small" data-action="merc-unequip" data-test="merc-unequip" data-i18n="btn.unequip"></button>
+                    <button id="merc-level-1" class="small" data-action="merc-level" data-count="1" data-test="merc-level-1">+1</button>
+                    <button id="merc-level-10" class="small" data-action="merc-level" data-count="10" data-test="merc-level-10">+10</button>
+                    <button id="merc-level-max" class="small" data-action="merc-level" data-count="max" data-test="merc-level-max" data-i18n="ui.max"></button>
+                  </div>
+                </div>
+                <div class="scrollbox">
+                  <div class="scroll-panel grid" id="merc-roster-list"></div>
                 </div>
               </div>
             </section>
@@ -235,7 +284,9 @@
                 <div class="action-bar" id="rune-action">
                   <div class="action-label" id="rune-selected">-</div>
                   <div class="action-buttons">
-                    <button id="rune-socket" class="small" data-action="socket-selected-rune" data-i18n="btn.socket"></button>
+                    <div class="btn-wrap" id="rune-socket-wrap">
+                      <button id="rune-socket" class="small" data-action="socket-selected-rune" data-i18n="btn.socket"></button>
+                    </div>
                     <button id="rune-sell" class="small danger" data-action="sell-selected-rune" data-i18n="btn.sell"></button>
                   </div>
                 </div>
@@ -416,8 +467,9 @@
       </div>
     </div>
     <div class="tooltip" id="tooltip"></div>
+    <div id="tutorialToast" class="tutorial-toast hidden"></div>
 
-    <script src="content.js"></script>
-    <script src="game.js"></script>
+    <script src="/content.js"></script>
+    <script src="/game.js"></script>
   </body>
 </html>

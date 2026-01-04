@@ -11,6 +11,7 @@
   --common: #c7bfa5;
   --rare: #5db7ff;
   --epic: #ff8cd3;
+  --icon-cell: 128px;
   --header-h: 54px;
   --panel-gap: 10px;
 }
@@ -275,9 +276,9 @@ body[data-chapter="6"] {
   flex: 1;
   min-height: 0;
   display: flex;
+  padding: 10px;
   align-items: center;
   justify-content: center;
-  padding: 10px;
   background: repeating-linear-gradient(
       45deg,
       rgba(255, 255, 255, 0.03),
@@ -333,6 +334,7 @@ body[data-chapter="6"] {
   border: 6px solid #1f1711;
   box-shadow: inset 0 0 0 6px #3d3226;
   position: relative;
+  opacity: 1;
 }
 
 .sprite::before,
@@ -340,6 +342,7 @@ body[data-chapter="6"] {
   content: "";
   position: absolute;
   image-rendering: pixelated;
+  pointer-events: none;
 }
 
 .sprite::before {
@@ -359,6 +362,7 @@ body[data-chapter="6"] {
   top: 70px;
   box-shadow: 40px 0 0 #2b1f16;
 }
+
 
 .weak-point {
   position: absolute;
@@ -407,6 +411,7 @@ body[data-chapter="6"] {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  z-index: 3;
 }
 
 .fx-layer {
@@ -414,6 +419,7 @@ body[data-chapter="6"] {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  z-index: 2;
 }
 
 .floating-text {
@@ -738,6 +744,11 @@ body[data-chapter="6"] {
   color: #ffd7c7;
 }
 
+.btn-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
 .scroll-panel {
   overflow-y: auto;
   min-height: 0;
@@ -749,6 +760,8 @@ body[data-chapter="6"] {
   grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
   gap: 6px;
   align-content: start;
+  position: relative;
+  z-index: 1;
 }
 
 .tile,
@@ -762,7 +775,11 @@ body[data-chapter="6"] {
   border: 3px solid #4b3d2e;
   background: #2c241d;
   text-transform: uppercase;
-  cursor: default;
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 0;
+  appearance: none;
+  z-index: 2;
 }
 
 .equip-tile {
@@ -795,6 +812,23 @@ body[data-chapter="6"] {
   display: grid;
   place-items: center;
   border: 2px solid #a48533;
+}
+
+.tile-icon,
+.merc-mini-icon {
+  width: 36px;
+  height: 36px;
+  background: transparent;
+}
+
+.equip-tile .tile-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.merc-mini-icon {
+  width: 20px;
+  height: 20px;
 }
 
 #equipped-rune-tile {
@@ -909,6 +943,14 @@ body[data-chapter="6"] {
   flex: 1;
 }
 
+#inventory-list,
+#rune-inventory-list,
+#merc-roster-list {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
 .log-list {
   list-style: none;
   margin: 0;
@@ -961,6 +1003,40 @@ body[data-chapter="6"] {
   border-color: #3b332b;
   color: #2a231d;
   cursor: not-allowed;
+}
+
+.buy-mults {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  min-width: 160px;
+  justify-content: flex-end;
+}
+
+.tiny {
+  background: #352b22;
+  border: 2px solid #584a3a;
+  color: #e6d7be;
+  padding: 4px 6px;
+  font-size: 8px;
+  min-width: 34px;
+  cursor: pointer;
+}
+
+.tiny.is-active {
+  background: var(--accent);
+  border-color: var(--accent-dark);
+  color: #2b210b;
+}
+
+.tiny:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.buy-mults .tiny.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .equipped,
@@ -1064,6 +1140,11 @@ body[data-chapter="6"] {
 
 #tab-runes .rune-glyph {
   font-size: 13px;
+}
+
+#tab-runes .rune-tile .tile-icon {
+  width: 32px;
+  height: 32px;
 }
 
 #tab-runes .runes-shop__purchasebar {
@@ -1244,6 +1325,10 @@ body[data-chapter="6"] {
   background: #2e261f;
 }
 
+.tutorial {
+  display: none;
+}
+
 .tutorial.hidden {
   display: none;
 }
@@ -1261,6 +1346,37 @@ body[data-chapter="6"] {
 .tutorial-text {
   color: var(--muted);
   word-break: keep-all;
+}
+
+.tutorial-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1000;
+  background: rgba(20, 16, 12, 0.85);
+  border: 2px solid rgba(190, 160, 90, 0.55);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: #e8ddc2;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  max-width: min(720px, 92vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translateX(-50%) translateY(8px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+}
+
+.tutorial-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.tutorial-toast.hidden {
+  display: none;
 }
 
 .settings-row {
@@ -1470,6 +1586,7 @@ body[data-chapter="6"] {
   display: flex;
 }
 
+
 .modal-content {
   background: var(--panel);
   border: 4px solid var(--panel-edge);
@@ -1567,6 +1684,161 @@ body[data-chapter="6"] {
 
 .compact .upgrade {
   padding: 4px 0;
+}
+
+/* Mercenaries */
+#merc-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  min-height: 48px;
+  align-items: flex-start;
+}
+
+.merc-mini {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #5a4b3a;
+  background: #2f261d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  position: relative;
+  pointer-events: none;
+}
+
+.merc-mini-glyph {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.merc-basic {
+  font-size: 6px;
+  color: var(--muted);
+  line-height: 1;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.merc-mini.skill-flash {
+  box-shadow: 0 0 10px rgba(255, 210, 120, 0.7);
+}
+
+#mercs-panel .merc-hire,
+#mercs-panel .merc-slots,
+#mercs-panel .merc-roster {
+  margin-bottom: 10px;
+}
+
+#mercs-panel .merc-hire {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#mercs-panel .merc-odds {
+  font-size: 8px;
+  color: var(--muted);
+}
+
+#mercs-panel .merc-slot-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+#mercs-panel .merc-slot {
+  width: 44px;
+  height: 44px;
+  border: 2px solid #5a4b3a;
+  background: #2f261d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#mercs-panel .merc-roster .scroll-panel {
+  min-height: 0;
+}
+
+#mercs-panel #merc-roster-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+}
+
+.merc-tile {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.merc-glyph {
+  font-size: 14px;
+}
+
+.merc-lv {
+  font-size: 8px;
+  color: var(--muted);
+}
+
+.grade-f {
+  border-color: #4b4034;
+}
+
+.grade-e {
+  border-color: #5a4b3a;
+}
+
+.grade-d {
+  border-color: #7a5b3a;
+}
+
+.grade-c {
+  border-color: #8a6a3a;
+}
+
+.grade-b {
+  border-color: #9a7a3a;
+}
+
+.merc-floater {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: #ffd07a;
+  pointer-events: none;
+  animation: mercFloat 0.8s ease-out forwards;
+}
+
+.merc-floater.skill {
+  color: #ffb347;
+}
+
+.merc-floater.buff {
+  color: #8fe3ff;
+}
+
+@keyframes mercFloat {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -16px);
+  }
 }
 
 @media (max-width: 1100px) {

@@ -1,0 +1,74 @@
+:root {
+  --ui-slice: 14;
+  --ui-border: 12px;
+}
+
+body.skin-v1png .ui-panel {
+  border-style: solid;
+  border-width: var(--ui-border);
+  border-image-slice: var(--ui-slice) fill;
+  border-image-repeat: stretch;
+  border-image-source: url("/assets/v1/ui/panels/panel_main.png");
+  background: transparent;
+}
+
+body.skin-v1png .ui-panel.ui-panel--sub {
+  border-image-source: url("/assets/v1/ui/panels/panel_sub.png");
+}
+
+body.skin-v1png .ui-btn {
+  border-style: solid;
+  border-width: var(--ui-border);
+  border-image-slice: var(--ui-slice) fill;
+  border-image-repeat: stretch;
+  border-image-source: url("/assets/v1/ui/buttons/btn_primary.png");
+  background: transparent;
+}
+
+body.skin-v1png .ui-btn:hover {
+  border-image-source: url("/assets/v1/ui/buttons/btn_primary_hover.png");
+}
+
+body.skin-v1png .ui-btn:active {
+  border-image-source: url("/assets/v1/ui/buttons/btn_primary_active.png");
+}
+
+body.skin-v1png .ui-btn:disabled {
+  opacity: 0.6;
+  filter: grayscale(0.2);
+}
+
+body.skin-v1png .ui-tab-btn {
+  border-style: solid;
+  border-width: var(--ui-border);
+  border-image-slice: var(--ui-slice) fill;
+  border-image-repeat: stretch;
+  border-image-source: url("/assets/v1/ui/buttons/tab_idle.png");
+  background: transparent;
+}
+
+body.skin-v1png .ui-tab-btn.is-active {
+  border-image-source: url("/assets/v1/ui/buttons/tab_active.png");
+}
+
+body.skin-v1png .progress-track {
+  border-style: solid;
+  border-width: var(--ui-border);
+  border-image-slice: var(--ui-slice) fill;
+  border-image-repeat: stretch;
+  border-image-source: url("/assets/v1/ui/bars/bar_track.png");
+  background: rgba(0, 0, 0, 0.25);
+}
+
+body.skin-v1png .progress-fill {
+  background: #b23;
+}
+
+body.skin-v1png .ui-icon,
+body.skin-v1png .tile-icon,
+body.skin-v1png .merc-mini-icon {
+  background-image: url("/assets/v1/ui/icons/placeholder.png");
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+}
