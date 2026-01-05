@@ -78,6 +78,27 @@ body[data-chapter="6"] {
   margin: 0 auto;
   padding: 10px 12px 12px;
   gap: var(--panel-gap);
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game input,
+.game textarea,
+.game [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
+  -ms-user-select: text;
+}
+
+.game img {
+  -webkit-user-drag: none;
+  user-drag: none;
 }
 
 .topbar {
@@ -292,6 +313,30 @@ body[data-chapter="6"] {
   overflow: hidden;
 }
 
+#battleBg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+#battleBg.show {
+  opacity: 1;
+}
+
+#battleBg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
 .monster-area.combo-glow {
   box-shadow: inset 0 0 14px rgba(255, 226, 154, 0.35);
 }
@@ -321,6 +366,8 @@ body[data-chapter="6"] {
   border: none;
   padding: 0;
   cursor: pointer;
+  position: relative;
+  z-index: 2;
 }
 
 .monster:active {
@@ -330,37 +377,23 @@ body[data-chapter="6"] {
 .sprite {
   width: clamp(140px, 24vh, 200px);
   height: clamp(140px, 24vh, 200px);
-  background: #5a4b3b;
-  border: 6px solid #1f1711;
-  box-shadow: inset 0 0 0 6px #3d3226;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   position: relative;
   opacity: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.sprite::before,
-.sprite::after {
-  content: "";
-  position: absolute;
+#monsterImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   image-rendering: pixelated;
   pointer-events: none;
-}
-
-.sprite::before {
-  width: 80px;
-  height: 80px;
-  background: #7e6a4f;
-  left: 20px;
-  top: 30px;
-  box-shadow: 80px 40px 0 #7e6a4f, 40px 90px 0 #7e6a4f;
-}
-
-.sprite::after {
-  width: 24px;
-  height: 24px;
-  background: #2b1f16;
-  left: 60px;
-  top: 70px;
-  box-shadow: 40px 0 0 #2b1f16;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.35));
 }
 
 

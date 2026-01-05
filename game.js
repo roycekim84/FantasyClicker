@@ -121,14 +121,8 @@
   const WEAK_POINT_MAX_MS = 2200;
   const BOSS_PATTERNS = ["guard", "evasion", "enrage"];
   const CHAPTER_ZONES = [10, 20, 30, 40, 50];
-  const SPRITE_GRID = 8;
-  const MONSTER_SPRITES = {
-    "greenfields": [1, 0],
-    "ashen-ruins": [6, 0],
-    "crypt-depths": [0, 2],
-    "frost-peaks": [0, 4],
-    "void-gate": [2, 4],
-  };
+  const MONSTER_IMAGE_BASE = "/assets/v1/battle/monsters";
+  const BATTLE_BG_BASE = "/assets/v1/battle/backgrounds";
   const MERC_GRADE_WEIGHTS = [
     { grade: "F", weight: 55 },
     { grade: "E", weight: 28 },
@@ -287,6 +281,7 @@
   };
 
   const el = {
+    root: document.querySelector(".game"),
     gold: document.getElementById("gold"),
     honor: document.getElementById("honor"),
     dmgMult: document.getElementById("dmg-mult"),
@@ -305,7 +300,9 @@
     monsterPanel: document.getElementById("monster-panel"),
     banner: document.getElementById("banner"),
     monster: document.getElementById("monster"),
+    monsterImage: document.getElementById("monsterImage"),
     monsterArea: document.getElementById("monster-area"),
+    battleBg: document.getElementById("battleBg"),
     weakPoint: document.getElementById("weak-point"),
     fxLayer: document.getElementById("fx-layer"),
     monsterName: document.getElementById("monster-name"),
@@ -633,10 +630,9 @@
   }
 
   const missingI18n = new Set();
-  const OPTIONAL_I18N_SELECTORS = new Set(["#tutorial-next", "#tutorial-skip"]);
 
   function warnMissingI18n(selector) {
-    if (!selector || OPTIONAL_I18N_SELECTORS.has(selector) || missingI18n.has(selector)) {
+    if (!selector || missingI18n.has(selector)) {
       return;
     }
     missingI18n.add(selector);
@@ -683,6 +679,14 @@
     setNodeText(el.tutorialSkip, "tutorial.skip", "#tutorial-skip");
     updateSettingsButtons();
     dirty.i18n = false;
+  }
+
+  function isSelectableTarget(target) {
+    return !!target?.closest("input, textarea, [contenteditable='true']");
+  }
+
+  function isInteractiveTarget(target) {
+    return !!target?.closest("button, a, input, textarea, [contenteditable='true']");
   }
 
   function unlockAudio() {
@@ -1055,6 +1059,7 @@
     el.bossIndicator.textContent = chapter ? t("ui.chapterBoss") : t("ui.boss");
     updateRegionUi();
     updateMonsterSprite();
+    updateBattleBackground();
     updateHpUi();
     resetWeakPoint();
     if (isBoss) {
@@ -1066,8 +1071,282 @@
     }
   }
 
+  const monsterImageCache = new Map();
+  const battleBgCache = new Map();
+  let monsterSpriteVersion = 0;
+  let battleBgVersion = 0;
+  let monsterHitTimer = null;
+  let currentBattleBg = "";
+
+  function toAssetSlug(name) {
+    if (!name || typeof name !== "string") {
+      return "unknown";
+    }
+    return name
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_")
+      .replace(/[^a-z0-9_]/g, "")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
+  function getMonsterEnglishName(key) {
+    const value = getByPath(I18N.en, key);
+    if (typeof value === "string") {
+      return value;
+    }
+    return t(key);
+  }
+
+  function getMonsterAssetPath(name, frame) {
+    const slug = toAssetSlug(name);
+    return `${MONSTER_IMAGE_BASE}/monster_${slug}_${frame}.png`;
+  }
+
+  function getBossAssetPath(kind, frame) {
+    const prefix = kind === "chapterBoss" ? "chapter_boss_generic" : "boss_generic";
+    return `${MONSTER_IMAGE_BASE}/${prefix}_${frame}.png`;
+  }
+
+  function getBossFallback(kind) {
+    const prefix = kind === "chapterBoss" ? "chapter_boss_generic" : "boss_generic";
+    return `${MONSTER_IMAGE_BASE}/${prefix}.png`;
+  }
+
+  function getRegionKeyFromZone(zone) {
+    const region = getRegionForZone(zone);
+    if (!region) {
+      return "greenfields";
+    }
+    switch (region.id) {
+      case "greenfields":
+        return "greenfields";
+      case "ashen-ruins":
+        return "ashen";
+      case "crypt-depths":
+        return "crypt";
+      case "frost-peaks":
+        return "frost";
+      case "void-gate":
+        return "void";
+      default:
+        return "greenfields";
+    }
+  }
+
+  function getBattleBgPath(regionKey, isBoss, isChapterBoss) {
+    if (isChapterBoss) {
+      return {
+        primary: `${BATTLE_BG_BASE}/bg_chapter_boss.png`,
+        fallback: `${BATTLE_BG_BASE}/bg_${regionKey}.png`,
+      };
+    }
+    if (isBoss) {
+      return {
+        primary: `${BATTLE_BG_BASE}/bg_boss.png`,
+        fallback: `${BATTLE_BG_BASE}/bg_${regionKey}.png`,
+      };
+    }
+    return {
+      primary: `${BATTLE_BG_BASE}/bg_${regionKey}.png`,
+      fallback: "",
+    };
+  }
+
+  function loadMonsterImage(src, onload, onerror) {
+    if (!src) {
+      onerror?.();
+      return;
+    }
+    let img = monsterImageCache.get(src);
+    if (!img) {
+      img = new Image();
+      monsterImageCache.set(src, img);
+      img.onload = () => onload?.();
+      img.onerror = () => onerror?.();
+      img.src = src;
+      return;
+    }
+    if (img.complete) {
+      onload?.();
+      return;
+    }
+    img.onload = () => onload?.();
+    img.onerror = () => onerror?.();
+  }
+
+  function setMonsterImage(src, fallback = "") {
+    if (!el.monsterImage) {
+      return;
+    }
+    const token = monsterSpriteVersion;
+    loadMonsterImage(
+      src,
+      () => {
+        if (token !== monsterSpriteVersion) {
+          return;
+        }
+        el.monsterImage.src = src;
+      },
+      () => {
+        if (token !== monsterSpriteVersion) {
+          return;
+        }
+        if (fallback && fallback !== src) {
+          loadMonsterImage(
+            fallback,
+            () => {
+              if (token === monsterSpriteVersion) {
+                el.monsterImage.src = fallback;
+              }
+            },
+            () => {
+              if (token === monsterSpriteVersion) {
+                el.monsterImage.removeAttribute("src");
+              }
+            }
+          );
+          return;
+        }
+        el.monsterImage.removeAttribute("src");
+      }
+    );
+  }
+
+  function loadBattleBg(src, onload, onerror) {
+    if (!src) {
+      onerror?.();
+      return;
+    }
+    const cached = battleBgCache.get(src);
+    if (cached?.status === "loaded") {
+      onload?.();
+      return;
+    }
+    if (cached?.status === "error") {
+      onerror?.();
+      return;
+    }
+    let img = cached?.img;
+    if (!img) {
+      img = new Image();
+      battleBgCache.set(src, { status: "loading", img });
+      img.onload = () => {
+        battleBgCache.set(src, { status: "loaded", img });
+        onload?.();
+      };
+      img.onerror = () => {
+        battleBgCache.set(src, { status: "error", img });
+        onerror?.();
+      };
+      img.src = src;
+      return;
+    }
+    if (img.complete) {
+      battleBgCache.set(src, { status: "loaded", img });
+      onload?.();
+      return;
+    }
+    img.onload = () => {
+      battleBgCache.set(src, { status: "loaded", img });
+      onload?.();
+    };
+    img.onerror = () => {
+      battleBgCache.set(src, { status: "error", img });
+      onerror?.();
+    };
+  }
+
+  function setBattleBackground(primary, fallback) {
+    if (!el.battleBg) {
+      return;
+    }
+    const target = primary || fallback || "";
+    if (!target) {
+      return;
+    }
+    if (target === currentBattleBg) {
+      return;
+    }
+    const token = ++battleBgVersion;
+    const apply = (path) => {
+      if (token !== battleBgVersion) {
+        return;
+      }
+      currentBattleBg = path;
+      el.battleBg.style.backgroundImage = `url("${path}")`;
+      el.battleBg.classList.add("show");
+    };
+    loadBattleBg(
+      primary,
+      () => apply(primary),
+      () => {
+        if (fallback && fallback !== primary) {
+          loadBattleBg(
+            fallback,
+            () => apply(fallback),
+            () => {
+              if (token === battleBgVersion) {
+                el.battleBg.classList.remove("show");
+              }
+            }
+          );
+        }
+      }
+    );
+  }
+
+  function updateBattleBackground() {
+    const regionKey = getRegionKeyFromZone(state.run.zone);
+    const paths = getBattleBgPath(regionKey, state.run.isBoss, state.run.isChapterBoss);
+    setBattleBackground(paths.primary, paths.fallback);
+  }
+
+  function getCurrentMonsterFramePaths() {
+    if (state.run.isChapterBoss) {
+      return {
+        idle: getBossAssetPath("chapterBoss", "idle"),
+        hit: getBossAssetPath("chapterBoss", "hit"),
+        fallback: getBossFallback("chapterBoss"),
+      };
+    }
+    if (state.run.isBoss) {
+      return {
+        idle: getBossAssetPath("boss", "idle"),
+        hit: getBossAssetPath("boss", "hit"),
+        fallback: getBossFallback("boss"),
+      };
+    }
+    const name = getMonsterEnglishName(state.run.monsterNameKey);
+    return {
+      idle: getMonsterAssetPath(name, "idle"),
+      hit: getMonsterAssetPath(name, "hit"),
+      fallback: "",
+    };
+  }
+
   function updateMonsterSprite() {
-    // PNG skin mode does not use sprite sheets; keep placeholder monster only.
+    monsterSpriteVersion += 1;
+    const frames = getCurrentMonsterFramePaths();
+    setMonsterImage(frames.idle, frames.fallback);
+  }
+
+  function flashMonsterHitSprite() {
+    if (!el.monsterImage) {
+      return;
+    }
+    if (monsterHitTimer) {
+      clearTimeout(monsterHitTimer);
+      monsterHitTimer = null;
+    }
+    const token = monsterSpriteVersion;
+    const frames = getCurrentMonsterFramePaths();
+    setMonsterImage(frames.hit, frames.fallback || frames.idle);
+    monsterHitTimer = setTimeout(() => {
+      if (token === monsterSpriteVersion) {
+        setMonsterImage(frames.idle, frames.fallback);
+      }
+    }, 150);
   }
 
   function updateRegionUi() {
@@ -1089,6 +1368,7 @@
       state.meta.regionsReached.push(region.id);
       addLog(t("log.regionReached", { name: t(region.nameKey) }));
     }
+    updateBattleBackground();
   }
 
   function updateHpUi() {
@@ -1649,6 +1929,9 @@
     state.run.monsterHp = Math.max(0, state.run.monsterHp - amount);
     addFloatingText(`-${formatNumber(amount)}`, style);
     updateHpUi();
+    if (amount > 0) {
+      flashMonsterHitSprite();
+    }
 
     if (state.run.monsterHp <= 0) {
       grantRewards();
@@ -5655,6 +5938,42 @@
       el.sfxVolume.addEventListener("input", (event) => {
         setSfxVolume(event.target.value);
       });
+    }
+
+    if (el.root) {
+      el.root.addEventListener(
+        "dragstart",
+        (event) => {
+          if (isSelectableTarget(event.target)) {
+            return;
+          }
+          event.preventDefault();
+        },
+        true
+      );
+      el.root.addEventListener(
+        "selectstart",
+        (event) => {
+          if (isSelectableTarget(event.target)) {
+            return;
+          }
+          event.preventDefault();
+        },
+        true
+      );
+      el.root.addEventListener(
+        "pointerdown",
+        (event) => {
+          if (isInteractiveTarget(event.target)) {
+            return;
+          }
+          if (event.button && event.button !== 0) {
+            return;
+          }
+          event.preventDefault();
+        },
+        true
+      );
     }
 
     document.addEventListener("pointerdown", onPointerDown, true);
