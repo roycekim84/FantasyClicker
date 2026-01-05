@@ -97,6 +97,7 @@
   const UI_FX_KEY = "fc_fx_reduced";
   const UI_SFX_KEY = "fc_sfx_enabled";
   const UI_SFX_VOL_KEY = "fc_sfx_volume";
+  const UI_SHOW_LOG_KEY = "fc_show_log_tab";
 
   const BASE_HP = 30;
   const BASE_GOLD = 5;
@@ -329,7 +330,8 @@
   };
 
   const el = {
-    root: document.querySelector(".game"),
+    root: document.getElementById("gameRoot"),
+    viewport: document.getElementById("viewport"),
     gold: document.getElementById("gold"),
     honor: document.getElementById("honor"),
     dmgMult: document.getElementById("dmg-mult"),
@@ -455,6 +457,7 @@
     save: document.getElementById("save"),
     reset: document.getElementById("reset"),
     sfxToggle: document.getElementById("sfx-toggle"),
+    logTabToggle: document.getElementById("toggle-log-tab"),
     sfxVolume: document.getElementById("sfx-volume"),
     offlineModal: document.getElementById("offline-modal"),
     offlineText: document.getElementById("offline-text"),
@@ -592,6 +595,7 @@
         compact: localStorage.getItem(UI_COMPACT_KEY) === "1",
         sfxEnabled: localStorage.getItem(UI_SFX_KEY) !== "0",
         sfxVolume: Number(localStorage.getItem(UI_SFX_VOL_KEY) || 60),
+        showLogTab: localStorage.getItem(UI_SHOW_LOG_KEY) === "1",
         tutorialStep: 0,
         tutorialDone: false,
         tutorialClicks: 0,
@@ -724,6 +728,19 @@
 
   function isInteractiveTarget(target) {
     return !!target?.closest("button, a, input, textarea, [contenteditable='true']");
+  }
+
+  function updateViewportScale() {
+    if (!el.root) {
+      return;
+    }
+    const vw = document.documentElement.clientWidth || window.innerWidth || 0;
+    const vh = document.documentElement.clientHeight || window.innerHeight || 0;
+    if (vw <= 0 || vh <= 0) {
+      return;
+    }
+    const scale = Math.min(vw / 1280, vh / 720);
+    el.root.style.setProperty("--scale", scale.toFixed(4));
   }
 
   function unlockAudio() {
@@ -3109,6 +3126,10 @@
       el.sfxToggle.textContent = state.ui.sfxEnabled ? t("settings.on") : t("settings.off");
       el.sfxToggle.classList.toggle("is-active", state.ui.sfxEnabled);
     }
+    if (el.logTabToggle) {
+      el.logTabToggle.textContent = state.ui.showLogTab ? t("settings.on") : t("settings.off");
+      el.logTabToggle.classList.toggle("is-active", state.ui.showLogTab);
+    }
     if (el.sfxVolume) {
       el.sfxVolume.value = clamp(Number(state.ui.sfxVolume) || 0, 0, 100);
     }
@@ -4828,6 +4849,10 @@
       state.ui.sfxEnabled = true;
     }
     state.ui.sfxVolume = clamp(Number(state.ui.sfxVolume) || 60, 0, 100);
+    if (typeof state.ui.showLogTab !== "boolean") {
+      state.ui.showLogTab = false;
+    }
+    localStorage.setItem(UI_SHOW_LOG_KEY, state.ui.showLogTab ? "1" : "0");
     if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
       state.ui.lang = "en";
     }
@@ -5018,6 +5043,10 @@
         state.ui.sfxEnabled = true;
       }
       state.ui.sfxVolume = clamp(Number(state.ui.sfxVolume) || 60, 0, 100);
+      if (typeof state.ui.showLogTab !== "boolean") {
+        state.ui.showLogTab = false;
+      }
+      localStorage.setItem(UI_SHOW_LOG_KEY, state.ui.showLogTab ? "1" : "0");
       if (state.ui.lang !== "en" && state.ui.lang !== "ko") {
         state.ui.lang = "en";
       }
@@ -5217,6 +5246,13 @@
     updateSettingsButtons();
   }
 
+  function setShowLogTab(value) {
+    state.ui.showLogTab = !!value;
+    localStorage.setItem(UI_SHOW_LOG_KEY, value ? "1" : "0");
+    applyLogTabVisibility();
+    updateSettingsButtons();
+  }
+
   function initTabs() {
     const buttons = Array.from(document.querySelectorAll(".tab-button"));
     const panels = Array.from(document.querySelectorAll(".tab-panel"));
@@ -5244,6 +5280,24 @@
     });
 
     setActiveTab("shop");
+  }
+
+  function applyLogTabVisibility() {
+    const logButton = document.querySelector("[data-tab='log']");
+    const logPanel = document.querySelector("[data-tab-panel='log']");
+    const shouldShow = !!state.ui.showLogTab;
+    if (logButton) {
+      logButton.style.display = shouldShow ? "" : "none";
+    }
+    if (logPanel) {
+      logPanel.style.display = shouldShow ? "" : "none";
+    }
+    if (!shouldShow) {
+      const activeLog = logPanel?.classList.contains("is-active");
+      if (activeLog && typeof setActiveTab === "function") {
+        setActiveTab("shop");
+      }
+    }
   }
 
   function initAchievementFilters() {
@@ -6035,6 +6089,11 @@
         setSfxVolume(event.target.value);
       });
     }
+    if (el.logTabToggle) {
+      el.logTabToggle.addEventListener("click", () => {
+        setShowLogTab(!state.ui.showLogTab);
+      });
+    }
 
     if (el.root) {
       el.root.addEventListener(
@@ -6076,6 +6135,7 @@
     document.addEventListener("dblclick", onGlobalDblClick, true);
     document.addEventListener("mousemove", handleTooltipMove);
     document.addEventListener("mouseleave", hideTooltip);
+    window.addEventListener("resize", updateViewportScale);
     window.addEventListener("error", (event) => {
       if (!devMode) {
         return;
@@ -6090,6 +6150,8 @@
       pushError(`Promise: ${reason}`);
     });
     startIntervals();
+    applyLogTabVisibility();
+    updateViewportScale();
   }
 
   window.addEventListener("beforeunload", saveGame);

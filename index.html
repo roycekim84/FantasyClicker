@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="game">
+    <div id="viewport">
+      <div id="gameRoot">
+        <div class="game">
       <header class="topbar">
         <div class="stats-row">
           <div class="stat"><span class="label" data-i18n="ui.gold"></span> <span id="gold">0</span></div>
@@ -72,15 +74,15 @@
 
         <section class="controls">
           <div class="tabs" role="tablist">
-            <button class="tab-button is-active" data-tab="shop" data-test="tab-shop" role="tab" data-i18n="tabs.shop"></button>
-            <button class="tab-button" data-tab="inventory" data-test="tab-inventory" role="tab" data-i18n="tabs.inventory"></button>
-            <button class="tab-button" data-tab="runes" data-test="tab-runes" role="tab" data-i18n="tabs.runes"></button>
-            <button class="tab-button" data-tab="mercs" data-test="tab-mercs" role="tab" data-i18n="tabs.mercs"></button>
-            <button class="tab-button" data-tab="quests" data-test="tab-quests" role="tab" data-i18n="tabs.quests"></button>
-            <button class="tab-button" data-tab="achievements" data-test="tab-achievements" role="tab" data-i18n="tabs.achievements"></button>
-            <button class="tab-button" data-tab="collections" data-test="tab-collections" role="tab" data-i18n="tabs.collections"></button>
-            <button class="tab-button" data-tab="settings" data-test="tab-settings" role="tab" data-i18n="tabs.settings"></button>
-            <button class="tab-button" data-tab="log" data-test="tab-log" role="tab" data-i18n="tabs.log"></button>
+            <button class="tab-button is-active" data-tab="shop" data-test="tab-shop" role="tab"><span class="tab-label" data-i18n="tabs.shop"></span></button>
+            <button class="tab-button" data-tab="inventory" data-test="tab-inventory" role="tab"><span class="tab-label" data-i18n="tabs.inventory"></span></button>
+            <button class="tab-button" data-tab="runes" data-test="tab-runes" role="tab"><span class="tab-label" data-i18n="tabs.runes"></span></button>
+            <button class="tab-button" data-tab="mercs" data-test="tab-mercs" role="tab"><span class="tab-label" data-i18n="tabs.mercs"></span></button>
+            <button class="tab-button" data-tab="quests" data-test="tab-quests" role="tab"><span class="tab-label" data-i18n="tabs.quests"></span></button>
+            <button class="tab-button" data-tab="achievements" data-test="tab-achievements" role="tab"><span class="tab-label" data-i18n="tabs.achievements"></span></button>
+            <button class="tab-button" data-tab="collections" data-test="tab-collections" role="tab"><span class="tab-label" data-i18n="tabs.collections"></span></button>
+            <button class="tab-button" data-tab="settings" data-test="tab-settings" role="tab"><span class="tab-label" data-i18n="tabs.settings"></span></button>
+            <button class="tab-button" data-tab="log" data-test="tab-log" role="tab"><span class="tab-label" data-i18n="tabs.log"></span></button>
           </div>
 
           <div class="tab-panels">
@@ -399,6 +401,12 @@
                   <button class="small" data-action="toggle-dev"></button>
                 </div>
               </div>
+              <div class="settings-row">
+                <div class="settings-label" data-i18n="settings.showLogTab"></div>
+                <div class="settings-controls">
+                  <button class="small" id="toggle-log-tab" data-action="toggle-log-tab"></button>
+                </div>
+              </div>
             </section>
 
             <section class="panel tab-panel" data-tab-panel="log">
@@ -433,6 +441,8 @@
           </div>
         </section>
       </main>
+        </div>
+      </div>
     </div>
 
     <div class="modal" id="offline-modal">
