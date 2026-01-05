@@ -123,6 +123,54 @@
   const CHAPTER_ZONES = [10, 20, 30, 40, 50];
   const MONSTER_IMAGE_BASE = "/assets/v1/battle/monsters";
   const BATTLE_BG_BASE = "/assets/v1/battle/backgrounds";
+  const ICON_PLACEHOLDER = "/assets/v1/ui/placeholder.png";
+  const DEBUG_ICON_KEYS = false;
+  const ICON_MAP = {
+    rune: {
+      boss: "/assets/v1/icons/runes/rune_boss.png",
+      greed: "/assets/v1/icons/runes/rune_greed.png",
+      precision: "/assets/v1/icons/runes/rune_precision.png",
+      swiftness: "/assets/v1/icons/runes/rune_swiftness.png",
+      fury: "/assets/v1/icons/runes/rune_fury.png",
+      tinker: "/assets/v1/icons/runes/rune_tinker.png",
+      generic: "/assets/v1/icons/runes/rune_generic.png",
+    },
+    item: {
+      weapon_common: "/assets/v1/icons/items/item_weapon_common.png",
+      weapon_rare: "/assets/v1/icons/items/item_weapon_rare.png",
+      weapon_epic: "/assets/v1/icons/items/item_weapon_epic.png",
+      relic_common: "/assets/v1/icons/items/item_relic_common.png",
+      relic_rare: "/assets/v1/icons/items/item_relic_rare.png",
+      relic_epic: "/assets/v1/icons/items/item_relic_epic.png",
+    },
+    merc: {
+      striker: "/assets/v1/icons/merc/merc_striker.png",
+      rapid: "/assets/v1/icons/merc/merc_rapid.png",
+      support: "/assets/v1/icons/merc/merc_support.png",
+      breaker: "/assets/v1/icons/merc/merc_breaker.png",
+    },
+    rarity: {
+      f: "/assets/v1/icons/grade/grade_f.png",
+      e: "/assets/v1/icons/grade/grade_e.png",
+      d: "/assets/v1/icons/grade/grade_d.png",
+      c: "/assets/v1/icons/grade/grade_c.png",
+      b: "/assets/v1/icons/grade/grade_b.png",
+    },
+    misc: {
+      placeholder: ICON_PLACEHOLDER,
+    },
+  };
+  const TAB_ICON_MAP = {
+    shop: "/assets/v1/ui/tab_shop.png",
+    inventory: "/assets/v1/ui/tab_inventory.png",
+    runes: "/assets/v1/ui/tab_runes.png",
+    mercs: "/assets/v1/ui/tab_mercenaries.png",
+    quests: "/assets/v1/ui/tab_quests.png",
+    achievements: "/assets/v1/ui/tab_achievements.png",
+    collections: "/assets/v1/ui/tab_collections.png",
+    settings: "/assets/v1/ui/tab_setting.png",
+    log: "/assets/v1/ui/tab_log.png",
+  };
   const MERC_GRADE_WEIGHTS = [
     { grade: "F", weight: 55 },
     { grade: "E", weight: 28 },
@@ -629,19 +677,8 @@
     return value;
   }
 
-  const missingI18n = new Set();
-
-  function warnMissingI18n(selector) {
-    if (!selector || missingI18n.has(selector)) {
-      return;
-    }
-    missingI18n.add(selector);
-    console.warn("[i18n] missing element:", selector);
-  }
-
   function setNodeText(node, key, selector) {
     if (!node) {
-      warnMissingI18n(selector || key);
       return;
     }
     node.textContent = t(key);
@@ -649,7 +686,6 @@
 
   function setNodeAttr(node, attr, key, selector) {
     if (!node) {
-      warnMissingI18n(selector || key);
       return;
     }
     node.setAttribute(attr, t(key));
@@ -659,6 +695,7 @@
     document.querySelectorAll("[data-i18n]").forEach((node) => {
       node.textContent = t(node.dataset.i18n);
     });
+    initTabIcons();
     document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
       setNodeAttr(node, "placeholder", node.dataset.i18nPlaceholder, "[data-i18n-placeholder]");
     });
@@ -2127,40 +2164,108 @@
     return glyph !== `rune.glyph.${effectId}` ? glyph : effectId.slice(0, 1).toUpperCase();
   }
 
-  function getItemIconClass(item) {
-    const rarity = String(item.rarity || "common").toLowerCase();
-    if (item.slot === "weapon") {
-      return `icon-weapon-${rarity}`;
+  const usedIconKeys = {
+    rune: new Set(),
+    item: new Set(),
+    merc: new Set(),
+    rarity: new Set(),
+  };
+
+  function logIconKeysOnce() {
+    if (!DEBUG_ICON_KEYS || logIconKeysOnce.done) {
+      return;
     }
-    return `icon-relic-${rarity}`;
+    logIconKeysOnce.done = true;
+    console.log("[icons] used keys", {
+      rune: Array.from(usedIconKeys.rune),
+      item: Array.from(usedIconKeys.item),
+      merc: Array.from(usedIconKeys.merc),
+      rarity: Array.from(usedIconKeys.rarity),
+    });
   }
 
-  function getRuneIconClass(rune) {
+  function resolveIconPath(kind, key) {
+    const safeKind = kind in ICON_MAP ? kind : "item";
+    const raw = String(key || "");
+    const normalized = raw.toLowerCase();
+    const map = ICON_MAP[safeKind] || {};
+    const file = map[raw] || map[normalized];
+    const src = file || ICON_PLACEHOLDER;
+    if (DEBUG_ICON_KEYS && usedIconKeys[safeKind]) {
+      usedIconKeys[safeKind].add(raw || normalized);
+    }
+    if (typeof src !== "string") {
+      console.warn("[icon] invalid icon src:", safeKind, raw);
+      return ICON_PLACEHOLDER;
+    }
+    if (!src.startsWith("/")) {
+      console.warn("[icon] non-absolute icon path blocked:", src);
+      return ICON_PLACEHOLDER;
+    }
+    if (src.includes("sprite_")) {
+      console.warn("[icon] legacy sprite path blocked:", src);
+      return ICON_PLACEHOLDER;
+    }
+    return src;
+  }
+
+  function getItemIconKey(item) {
+    const rarity = String(item.rarity || "common").toLowerCase();
+    const slot = item.slot === "weapon" ? "weapon" : "relic";
+    return `${slot}_${rarity}`;
+  }
+
+  function getRuneIconKey(rune) {
     const effectId = rune.effect || rune.effectId;
-    const map = {
-      boss: "icon-rune-boss",
-      greed: "icon-rune-greed",
-      precision: "icon-rune-precision",
-      swiftness: "icon-rune-swiftness",
-      fury: "icon-rune-fury",
-      tinker: "icon-rune-tinker",
-    };
-    return map[effectId] || "icon-rune-generic";
+    return effectId || "generic";
   }
 
-  function getMercIconClass(merc) {
+  function getMercIconKey(merc) {
     const cls = merc.classId || "striker";
-    return `icon-merc-${cls}`;
+    return cls;
   }
 
-  function setTileIcon(node, iconClass, extraClass = "tile-icon") {
+  function setTileIcon(node, kind, key, extraClass = "tile-icon", clear = true) {
     if (!node) {
       return;
     }
-    node.textContent = "";
-    const icon = document.createElement("div");
-    icon.className = `${extraClass} ${iconClass}`.trim();
+    if (clear) {
+      node.textContent = "";
+    }
+    const icon = document.createElement("img");
+    icon.className = extraClass;
+    icon.alt = "";
+    icon.draggable = false;
+    icon.decoding = "async";
+    icon.src = resolveIconPath(kind, key);
+    icon.onerror = () => {
+      if (icon.dataset.fallback === "1") {
+        return;
+      }
+      icon.dataset.fallback = "1";
+      console.warn("[icon] load failed:", icon.src);
+      icon.src = ICON_PLACEHOLDER;
+    };
     node.appendChild(icon);
+  }
+
+  function initTabIcons() {
+    document.querySelectorAll(".tab-button[data-tab]").forEach((btn) => {
+      const tabKey = btn.dataset.tab;
+      const iconPath = TAB_ICON_MAP[tabKey] || ICON_PLACEHOLDER;
+      let icon = btn.querySelector(".tab-icon");
+      if (!icon) {
+        icon = document.createElement("span");
+        icon.className = "tab-icon";
+        icon.setAttribute("aria-hidden", "true");
+        btn.prepend(icon);
+      }
+      icon.style.backgroundImage = `url("${iconPath}")`;
+      icon.style.backgroundRepeat = "no-repeat";
+      icon.style.backgroundPosition = "center";
+      icon.style.backgroundSize = "contain";
+      icon.style.imageRendering = "pixelated";
+    });
   }
 
   function normalizeMerc(merc) {
@@ -2346,7 +2451,7 @@
       el.equippedWeaponName.className = `equipped-name rarity-${weapon.rarity.toLowerCase()}`;
       el.equippedWeaponState.textContent = t("ui.equipped");
       el.equippedWeaponStat.textContent = describeItemStat(weapon);
-      setTileIcon(el.equippedWeaponTile, getItemIconClass(weapon));
+      setTileIcon(el.equippedWeaponTile, "item", getItemIconKey(weapon), "tile-icon", true);
       el.equippedWeaponTile.className = `equip-tile equipped rarity-${weapon.rarity.toLowerCase()}`;
       el.equippedWeaponTile.dataset.tooltip = buildItemTooltip(weapon);
       el.unequipWeapon.disabled = false;
@@ -2367,7 +2472,7 @@
       el.equippedRelicName.className = `equipped-name rarity-${relic.rarity.toLowerCase()}`;
       el.equippedRelicState.textContent = t("ui.equipped");
       el.equippedRelicStat.textContent = describeItemStat(relic);
-      setTileIcon(el.equippedRelicTile, getItemIconClass(relic));
+      setTileIcon(el.equippedRelicTile, "item", getItemIconKey(relic), "tile-icon", true);
       el.equippedRelicTile.className = `equip-tile equipped rarity-${relic.rarity.toLowerCase()}`;
       el.equippedRelicTile.dataset.tooltip = buildItemTooltip(relic);
       el.unequipRelic.disabled = false;
@@ -2415,9 +2520,7 @@
       tile.dataset.itemId = item.id;
       tile.dataset.test = "equip-item";
       tile.dataset.tooltip = buildItemTooltip(item);
-      const icon = document.createElement("div");
-      icon.className = `tile-icon ${getItemIconClass(item)}`;
-      tile.appendChild(icon);
+      setTileIcon(tile, "item", getItemIconKey(item), "tile-icon", false);
       if (isEquipped) {
         const badge = document.createElement("div");
         badge.className = "badge";
@@ -2460,9 +2563,7 @@
       tile.setAttribute("data-offer-id", rune.id);
       tile.dataset.tooltip = buildRuneOfferTooltip(rune);
 
-      const icon = document.createElement("div");
-      icon.className = `tile-icon ${getRuneIconClass(rune)}`;
-      tile.appendChild(icon);
+      setTileIcon(tile, "rune", getRuneIconKey(rune), "tile-icon", false);
       el.runeShopList.appendChild(tile);
     });
 
@@ -2491,9 +2592,7 @@
       tile.dataset.runeId = rune.id;
       tile.dataset.test = "rune-socket";
       tile.dataset.tooltip = buildRuneTooltip(rune);
-      const icon = document.createElement("div");
-      icon.className = `tile-icon ${getRuneIconClass(rune)}`;
-      tile.appendChild(icon);
+      setTileIcon(tile, "rune", getRuneIconKey(rune), "tile-icon", false);
       if (isSocketed) {
         const badge = document.createElement("div");
         badge.className = "badge";
@@ -2509,7 +2608,7 @@
       el.socketedRuneName.textContent = getRuneName(socketed);
       el.socketedRuneName.className = `rune-slot-name rarity-${socketed.rarity.toLowerCase()}`;
       el.socketedRuneStat.textContent = describeRuneStat(socketed);
-      setTileIcon(el.socketedRuneTile, getRuneIconClass(socketed));
+      setTileIcon(el.socketedRuneTile, "rune", getRuneIconKey(socketed), "tile-icon", true);
       el.socketedRuneTile.className = `equip-tile equipped rarity-${socketed.rarity.toLowerCase()}`;
       el.socketedRuneTile.dataset.tooltip = buildRuneTooltip(socketed);
       el.unequipRune.disabled = false;
@@ -3167,6 +3266,7 @@
     if (dirty.achievements || newAch) {
       updateAchievementsUi();
     }
+    logIconKeysOnce();
   }
 
   function buyUpgrade(type) {
@@ -3994,7 +4094,7 @@
           slot.classList.add(`grade-${merc.grade.toLowerCase()}`);
           slot.dataset.action = "merc-select";
           slot.dataset.mercId = merc.id;
-          setTileIcon(slot, getMercIconClass(merc));
+          setTileIcon(slot, "merc", getMercIconKey(merc), "tile-icon", true);
           slot.dataset.tooltip = buildMercTooltip(merc);
         }
       } else {
@@ -4015,12 +4115,10 @@
       tile.dataset.action = "merc-select";
       tile.dataset.mercId = merc.id;
       tile.dataset.tooltip = buildMercTooltip(merc);
-      const icon = document.createElement("div");
-      icon.className = `tile-icon ${getMercIconClass(merc)}`;
       const level = document.createElement("div");
       level.className = "merc-lv";
       level.textContent = `Lv.${merc.level}`;
-      tile.appendChild(icon);
+      setTileIcon(tile, "merc", getMercIconKey(merc), "tile-icon", false);
       tile.appendChild(level);
       el.mercRosterList.appendChild(tile);
     });
@@ -4087,13 +4185,11 @@
       const tile = document.createElement("div");
       tile.className = `merc-mini grade-${merc.grade.toLowerCase()}`;
       tile.dataset.mercId = merc.id;
-      const glyph = document.createElement("div");
-      glyph.className = `merc-mini-icon ${getMercIconClass(merc)}`;
+      setTileIcon(tile, "merc", getMercIconKey(merc), "merc-mini-icon", false);
       const basic = getMercDisplayBasicText(merc);
       const label = document.createElement("div");
       label.className = "merc-basic";
       label.textContent = `${t("ui.mercBasicShort")}: ${basic.hitText}`;
-      tile.appendChild(glyph);
       tile.appendChild(label);
       el.mercBar.appendChild(tile);
     });
